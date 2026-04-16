@@ -31,3 +31,25 @@ class GenerateRequest(BaseModel):
 class GenerateResponse(GenerateRequest):
     generated_code: str
     message: str
+
+
+class UserRegisterRequest(BaseModel):
+    name: str
+    email: str
+    password: str
+
+
+class UserLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    id: int
+    name: str
+    email: str
+    role: str
+    created_at: str
+
+    class Config:
+        from_attributes = True

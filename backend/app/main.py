@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import Base, engine
-from app.routes import projects, generate
+from app.routes import auth, projects, generate
 
 Base.metadata.create_all(bind=engine)
 
@@ -26,6 +26,7 @@ app.add_middleware(
 
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(generate.router, prefix="/generate", tags=["Generate"])
+app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 
 
 @app.get("/")
