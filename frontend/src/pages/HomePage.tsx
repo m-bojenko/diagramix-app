@@ -1,6 +1,8 @@
 import { type ChangeEvent, type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { generateDiagram } from '../services/api'
+
 function HomePage() {
   const navigate = useNavigate()
   const [projectName, setProjectName] = useState('')
@@ -13,9 +15,42 @@ function HomePage() {
     setFileName(file ? file.name : 'Файл не выбран')
   }
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    navigate('/result')
+
+    if (!projectName.trim() || !description.trim()) {
+      alert('Заполните все поля')
+      return
+    }
+
+    const requestPayload = {
+      project_name: projectName.trim(),
+      description: description.trim(),
+      diagram_type: diagramType,
+    }
+
+    try {
+      const result = await generateDiagram(requestPayload)
+
+      localStorage.setItem(
+        'diagramix_result',
+        JSON.stringify({
+          project_name: result.project_name,
+          description: result.description,
+          diagram_type: result.diagram_type,
+          generated_code: result.generated_code,
+          message: result.message,
+        }),
+      )
+
+      navigate('/result')
+    } catch (error) {
+      console.error('Ошибка генерации диаграммы', {
+        error,
+        payload: requestPayload,
+      })
+      alert(error instanceof Error ? error.message : 'Ошибка при генерации')
+    }
   }
 
   return (

@@ -20,3 +20,14 @@ class ProjectResponse(ProjectBase):
 
     class Config:
         from_attributes = True
+
+
+class GenerateRequest(BaseModel):
+    project_name: str
+    description: str
+    diagram_type: str
+
+
+class GenerateResponse(GenerateRequest):
+    generated_code: str
+    message: str
