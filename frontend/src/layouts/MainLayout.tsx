@@ -1,21 +1,24 @@
 import { Link, Outlet } from 'react-router-dom'
+import logo from '../assets/logo_diagramix.png'
 
 function MainLayout() {
   return (
     <div className="app-layout">
       <header className="app-header">
         <Link className="logo" to="/">
-          Diagramix
+          <img src={logo} alt="Diagramix" />
         </Link>
 
         <nav className="main-nav" aria-label="Основная навигация">
           <Link to="/">Главная</Link>
-          <Link to="/result">Результат</Link>
           <Link to="/projects">Проекты</Link>
         </nav>
 
-        <Link className="profile-link" to="/profile">
-          Профиль
+        <Link className="profile-link" to="/profile" aria-label="Профиль">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" />
+            <path d="M5 20a7 7 0 0 1 14 0" />
+          </svg>
         </Link>
       </header>
 
