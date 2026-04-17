@@ -6,12 +6,17 @@ class ProjectBase(BaseModel):
     name: str
     description: str
     diagram_type: str
+    diagram_language: str
 
 
 class ProjectCreate(ProjectBase):
     generated_code: Optional[str] = None
     created_at: str
     user_id: int
+
+
+class ProjectUpdate(ProjectBase):
+    generated_code: Optional[str] = None
 
 
 class ProjectResponse(ProjectBase):
@@ -28,6 +33,7 @@ class GenerateRequest(BaseModel):
     project_name: str
     description: str
     diagram_type: str
+    diagram_language: str
 
 
 class GenerateResponse(GenerateRequest):
@@ -44,6 +50,12 @@ class UserRegisterRequest(BaseModel):
 class UserLoginRequest(BaseModel):
     email: str
     password: str
+
+
+class UserUpdateRequest(BaseModel):
+    name: str
+    email: str
+    password: Optional[str] = None
 
 
 class UserResponse(BaseModel):

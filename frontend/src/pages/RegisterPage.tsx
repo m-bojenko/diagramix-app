@@ -1,10 +1,12 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import logo from '../assets/logo_diagramix.png'
+import { useAppMessage } from '../components/AppMessageContext'
 import { registerUser } from '../services/api'
 
 function RegisterPage() {
   const navigate = useNavigate()
+  const { showMessage } = useAppMessage()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -15,17 +17,26 @@ function RegisterPage() {
     event.preventDefault()
 
     if (!name.trim() || !email.trim() || !password || !passwordConfirm) {
-      alert('Заполните все поля')
+      showMessage({
+        message: 'Заполните все поля',
+        title: 'Не все поля заполнены',
+      })
       return
     }
 
     if (password !== passwordConfirm) {
-      alert('Пароли не совпадают')
+      showMessage({
+        message: 'Пароли не совпадают',
+        title: 'Проверьте пароль',
+      })
       return
     }
 
     if (!termsAccepted) {
-      alert('Примите условия использования и политику конфиденциальности')
+      showMessage({
+        message: 'Примите условия использования и политику конфиденциальности',
+        title: 'Требуется согласие',
+      })
       return
     }
 
@@ -40,7 +51,10 @@ function RegisterPage() {
       navigate('/')
     } catch (error) {
       console.error('Ошибка регистрации', error)
-      alert(error instanceof Error ? error.message : 'Ошибка при регистрации')
+      showMessage({
+        message: error instanceof Error ? error.message : 'Ошибка при регистрации',
+        title: 'Ошибка регистрации',
+      })
     }
   }
 

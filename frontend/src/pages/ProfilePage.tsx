@@ -1,16 +1,128 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+
+import { useAppMessage } from '../components/AppMessageContext'
+import { getProjects, updateUser, type User } from '../services/api'
+
+function readCurrentUser() {
+  const savedUser = localStorage.getItem('diagramix_user')
+
+  if (!savedUser) {
+    return null
+  }
+
+  try {
+    return JSON.parse(savedUser) as User
+  } catch (error) {
+    console.error('Не удалось прочитать пользователя из localStorage', error)
+    return null
+  }
+}
 
 function ProfilePage() {
   const navigate = useNavigate()
-  const [name, setName] = useState('Иван Петров')
-  const [email, setEmail] = useState('ivan@diagramix.ru')
+  const { showMessage } = useAppMessage()
+  const [currentUser, setCurrentUser] = useState<User | null>(() => readCurrentUser())
+  const [name, setName] = useState(() => currentUser?.name ?? '')
+  const [email, setEmail] = useState(() => currentUser?.email ?? '')
   const [password, setPassword] = useState('')
   const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [projectsCount, setProjectsCount] = useState(0)
+  const [isSaving, setIsSaving] = useState(false)
+  const hasProfileChanges =
+    Boolean(currentUser) &&
+    (name.trim() !== currentUser?.name ||
+      email.trim() !== currentUser?.email ||
+      Boolean(password) ||
+      Boolean(passwordConfirm))
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (!currentUser) {
+      navigate('/login', { replace: true })
+      return
+    }
+
+    const loadProjectsCount = async () => {
+      try {
+        const projects = await getProjects(currentUser.id)
+        setProjectsCount(projects.length)
+      } catch (error) {
+        console.error('Не удалось загрузить количество проектов', error)
+      }
+    }
+
+    loadProjectsCount()
+  }, [currentUser, navigate])
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    alert('Изменения сохранены')
+
+    if (!currentUser) {
+      showMessage({
+        message: 'Пользователь не авторизован',
+        title: 'Нет доступа',
+      })
+      navigate('/login', { replace: true })
+      return
+    }
+
+    if (!hasProfileChanges || isSaving) {
+      return
+    }
+
+    if (!name.trim() || !email.trim()) {
+      showMessage({
+        message: 'Заполните имя и email',
+        title: 'Не все поля заполнены',
+      })
+      return
+    }
+
+    if (password || passwordConfirm) {
+      if (password !== passwordConfirm) {
+        showMessage({
+          message: 'Пароли не совпадают',
+          title: 'Проверьте пароль',
+        })
+        return
+      }
+
+      if (password.length < 8) {
+        showMessage({
+          message: 'Пароль должен быть не менее 8 символов',
+          title: 'Проверьте пароль',
+        })
+        return
+      }
+    }
+
+    try {
+      setIsSaving(true)
+      const updatedUser = await updateUser(currentUser.id, {
+        name: name.trim(),
+        email: email.trim(),
+        password: password || undefined,
+      })
+
+      localStorage.setItem('diagramix_user', JSON.stringify(updatedUser))
+      setCurrentUser(updatedUser)
+      setName(updatedUser.name)
+      setEmail(updatedUser.email)
+      setPassword('')
+      setPasswordConfirm('')
+      showMessage({
+        message: 'Изменения сохранены',
+        title: 'Профиль обновлен',
+      })
+    } catch (error) {
+      console.error('Ошибка сохранения профиля', error)
+      showMessage({
+        message: error instanceof Error ? error.message : 'Ошибка при сохранении профиля',
+        title: 'Ошибка сохранения',
+      })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleLogout = () => {
@@ -58,18 +170,22 @@ function ProfilePage() {
           <dl>
             <div>
               <dt>Дата регистрации</dt>
-              <dd>10.04.2026</dd>
+              <dd>{currentUser?.created_at ?? 'Неизвестно'}</dd>
             </div>
             <div>
               <dt>Количество проектов</dt>
-              <dd>3</dd>
+              <dd>{projectsCount}</dd>
             </div>
           </dl>
         </section>
 
         <div className="profile-actions">
-          <button className="result-button result-button-primary" type="submit">
-            Сохранить изменения
+          <button
+            className="result-button result-button-primary"
+            type="submit"
+            disabled={!hasProfileChanges || isSaving}
+          >
+            {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
           </button>
           <button className="result-button result-button-primary" type="button" onClick={() => navigate(-1)}>
             Назад

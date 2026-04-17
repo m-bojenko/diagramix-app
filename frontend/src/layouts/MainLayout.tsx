@@ -11,7 +11,6 @@ function MainLayout() {
 
         <nav className="main-nav" aria-label="Основная навигация">
           <Link to="/">Главная</Link>
-          <Link to="/projects">Проекты</Link>
         </nav>
 
         <Link className="profile-link" to="/profile" aria-label="Профиль">

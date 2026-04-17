@@ -9,6 +9,7 @@ class Project(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=False)
     diagram_type = Column(String, nullable=False)
+    diagram_language = Column(String, nullable=False, default="Mermaid")
     generated_code = Column(Text, nullable=True)
     created_at = Column(String, nullable=False)
     user_id = Column(Integer, nullable=False)

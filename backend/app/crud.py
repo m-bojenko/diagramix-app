@@ -20,6 +20,7 @@ def create_project(db: Session, project: schemas.ProjectCreate):
         name=project.name,
         description=project.description,
         diagram_type=project.diagram_type,
+        diagram_language=project.diagram_language,
         generated_code=project.generated_code,
         created_at=project.created_at,
         user_id=project.user_id
@@ -42,6 +43,22 @@ def get_project_by_id(db: Session, project_id: int):
     return db.query(models.Project).filter(models.Project.id == project_id).first()
 
 
+def update_project(db: Session, project_id: int, project_data: schemas.ProjectUpdate):
+    project = get_project_by_id(db, project_id)
+
+    if not project:
+        return None
+
+    project.name = project_data.name
+    project.description = project_data.description
+    project.diagram_type = project_data.diagram_type
+    project.diagram_language = project_data.diagram_language
+    project.generated_code = project_data.generated_code
+    db.commit()
+    db.refresh(project)
+    return project
+
+
 def delete_project(db: Session, project_id: int):
     project = get_project_by_id(db, project_id)
 
@@ -55,6 +72,10 @@ def delete_project(db: Session, project_id: int):
 
 def get_user_by_email(db: Session, email: str):
     return db.query(models.User).filter(models.User.email == email).first()
+
+
+def get_user_by_id(db: Session, user_id: int):
+    return db.query(models.User).filter(models.User.id == user_id).first()
 
 
 def create_user(db: Session, user_data: schemas.UserRegisterRequest):
@@ -80,4 +101,21 @@ def verify_user(db: Session, email: str, password: str):
     if not verify_password(password, user.password_hash):
         return None
 
+    return user
+
+
+def update_user(db: Session, user_id: int, user_data: schemas.UserUpdateRequest):
+    user = get_user_by_id(db, user_id)
+
+    if not user:
+        return None
+
+    user.name = user_data.name
+    user.email = user_data.email
+
+    if user_data.password:
+        user.password_hash = hash_password(user_data.password)
+
+    db.commit()
+    db.refresh(user)
     return user

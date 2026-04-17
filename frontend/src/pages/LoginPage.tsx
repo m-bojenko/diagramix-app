@@ -1,10 +1,12 @@
 import { type FormEvent, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import logo from '../assets/logo_diagramix.png'
+import { useAppMessage } from '../components/AppMessageContext'
 import { loginUser } from '../services/api'
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { showMessage } = useAppMessage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
@@ -12,7 +14,10 @@ function LoginPage() {
     event.preventDefault()
 
     if (!email.trim() || !password) {
-      alert('Введите email и пароль')
+      showMessage({
+        message: 'Введите email и пароль',
+        title: 'Не все поля заполнены',
+      })
       return
     }
 
@@ -26,7 +31,10 @@ function LoginPage() {
       navigate('/')
     } catch (error) {
       console.error('Ошибка входа', error)
-      alert(error instanceof Error ? error.message : 'Ошибка при входе')
+      showMessage({
+        message: error instanceof Error ? error.message : 'Ошибка при входе',
+        title: 'Ошибка входа',
+      })
     }
   }
 

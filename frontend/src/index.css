@@ -150,6 +150,11 @@ h1 {
   font-size: 16px;
 }
 
+.required-star {
+  color: #d12f5f;
+  font-weight: 700;
+}
+
 .form-field textarea,
 .form-field select {
   width: 100%;
@@ -197,6 +202,39 @@ h1 {
   flex-direction: column;
   gap: 10px;
   margin-bottom: 18px;
+}
+
+.language-toggle {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.language-toggle-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.language-toggle-button {
+  min-height: 44px;
+  color: #3c323a;
+  background: #ffffff;
+  border: 1px solid #d9cbd2;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease;
+}
+
+.language-toggle-button:hover,
+.language-toggle-button.active {
+  color: #a83e6d;
+  background: #fde5ef;
+  border-color: #de8fb2;
 }
 
 .field-label {
@@ -265,11 +303,23 @@ h1 {
   margin-bottom: 18px;
 }
 
+.result-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
 .result-header h1 {
   margin-bottom: 16px;
   color: #171315;
   font-size: 26px;
   line-height: 1.2;
+}
+
+.result-title-row h1 {
+  margin-bottom: 0;
 }
 
 .result-header p {
@@ -325,7 +375,7 @@ h1 {
 
 .result-actions {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   margin-top: 14px;
 }
@@ -355,8 +405,26 @@ h1 {
   border-color: #df69a1;
 }
 
+.result-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.result-button:disabled:hover {
+  color: #171315;
+  background: #fde5ef;
+  border-color: #de8fb2;
+}
+
 .result-button:active {
   transform: translateY(1px);
+}
+
+.result-top-button {
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 14px;
+  font-size: 14px;
 }
 
 .result-button-primary {
@@ -366,6 +434,48 @@ h1 {
 
 .result-button-primary:hover {
   background: #f8d7e5;
+}
+
+.app-message-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(23, 19, 21, 0.34);
+}
+
+.app-message-dialog {
+  width: min(100%, 480px);
+  padding: 22px;
+  background: #ffffff;
+  border: 1px solid #ead7e2;
+  border-radius: 10px;
+  box-shadow: 0 18px 42px rgba(122, 76, 102, 0.16);
+}
+
+.app-message-dialog h2 {
+  margin: 0 0 10px;
+  color: #171315;
+  font-size: 20px;
+}
+
+.app-message-dialog p {
+  margin: 0;
+  color: #4b4349;
+  line-height: 1.5;
+}
+
+.app-message-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.app-message-actions.confirm {
+  grid-template-columns: 1fr 1.4fr;
 }
 
 .projects-page {
@@ -721,6 +831,15 @@ h1 {
   }
 
   .result-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .result-title-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .app-message-actions.confirm {
     grid-template-columns: 1fr;
   }
 

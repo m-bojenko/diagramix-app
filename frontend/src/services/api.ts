@@ -2,12 +2,14 @@ export type GenerateRequest = {
   project_name: string
   description: string
   diagram_type: string
+  diagram_language: string
 }
 
 export type GenerateResponse = {
   project_name: string
   description: string
   diagram_type: string
+  diagram_language: string
   generated_code: string
   message: string
 }
@@ -17,6 +19,7 @@ export type Project = {
   name: string
   description: string
   diagram_type: string
+  diagram_language: string
   generated_code?: string | null
   created_at: string
   user_id: number
@@ -26,9 +29,18 @@ export type CreateProjectRequest = {
   name: string
   description: string
   diagram_type: string
+  diagram_language: string
   generated_code?: string | null
   created_at: string
   user_id: number
+}
+
+export type UpdateProjectRequest = {
+  name: string
+  description: string
+  diagram_type: string
+  diagram_language: string
+  generated_code?: string | null
 }
 
 export type User = {
@@ -48,6 +60,12 @@ export type RegisterUserRequest = {
 export type LoginUserRequest = {
   email: string
   password: string
+}
+
+export type UpdateUserRequest = {
+  name: string
+  email: string
+  password?: string
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
@@ -127,6 +145,22 @@ export async function loginUser(payload: LoginUserRequest): Promise<User> {
   return response.json()
 }
 
+export async function updateUser(userId: number, payload: UpdateUserRequest): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при сохранении профиля'))
+  }
+
+  return response.json()
+}
+
 export async function createProject(
   payload: CreateProjectRequest
 ): Promise<Project> {
@@ -140,6 +174,25 @@ export async function createProject(
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при сохранении проекта'))
+  }
+
+  return response.json()
+}
+
+export async function updateProject(
+  projectId: number,
+  payload: UpdateProjectRequest
+): Promise<Project> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при обновлении проекта'))
   }
 
   return response.json()

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import { useAppMessage } from '../components/AppMessageContext'
 import { deleteProject, getProjects, type Project } from '../services/api'
 
 type CurrentUser = {
@@ -24,6 +25,7 @@ function readCurrentUser() {
 
 function ProjectsPage() {
   const navigate = useNavigate()
+  const { confirmMessage, showMessage } = useAppMessage()
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -57,10 +59,14 @@ function ProjectsPage() {
     localStorage.setItem(
       'diagramix_result',
       JSON.stringify({
+        project_id: project.id,
         project_name: project.name,
         description: project.description,
         diagram_type: project.diagram_type,
+        diagram_language: project.diagram_language,
         generated_code: project.generated_code,
+        source: 'project',
+        user_id: project.user_id,
         message: 'Проект загружен',
       }),
     )
@@ -69,7 +75,12 @@ function ProjectsPage() {
   }
 
   const handleDeleteProject = async (project: Project) => {
-    const shouldDelete = confirm('Удалить проект?')
+    const shouldDelete = await confirmMessage({
+      cancelLabel: 'Отмена',
+      confirmLabel: 'Удалить',
+      message: 'Удалить проект?',
+      title: 'Удаление проекта',
+    })
 
     if (!shouldDelete) {
       return
@@ -80,8 +91,17 @@ function ProjectsPage() {
       await loadProjects()
     } catch (deleteError) {
       console.error('Ошибка удаления проекта', deleteError)
-      alert(deleteError instanceof Error ? deleteError.message : 'Ошибка при удалении проекта')
+      showMessage({
+        message: deleteError instanceof Error ? deleteError.message : 'Ошибка при удалении проекта',
+        title: 'Ошибка удаления',
+      })
     }
+  }
+
+  const handleCreateProject = () => {
+    localStorage.removeItem('diagramix_generation_form')
+    localStorage.removeItem('diagramix_result')
+    navigate('/generate')
   }
 
   return (
@@ -91,7 +111,7 @@ function ProjectsPage() {
         <button
           className="result-button result-button-primary new-project-button"
           type="button"
-          onClick={() => navigate('/')}
+          onClick={handleCreateProject}
         >
           Новый проект
         </button>

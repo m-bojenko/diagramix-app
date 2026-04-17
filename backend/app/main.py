@@ -21,6 +21,12 @@ def ensure_project_user_id_column():
                 text("ALTER TABLE projects ADD COLUMN user_id INTEGER NOT NULL DEFAULT 1")
             )
 
+    if "diagram_language" not in columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE projects ADD COLUMN diagram_language VARCHAR NOT NULL DEFAULT 'Mermaid'")
+            )
+
 
 ensure_project_user_id_column()
 

@@ -1,13 +1,18 @@
-import { useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { createProject } from '../services/api'
+import { useAppMessage } from '../components/AppMessageContext'
+import { createProject, updateProject } from '../services/api'
 
 type DiagramixResult = {
+  project_id?: number
   project_name: string
   description: string
   diagram_type: string
+  diagram_language: string
   generated_code: string
+  source?: 'generation' | 'project'
+  user_id?: number
   message?: string
 }
 
@@ -47,42 +52,196 @@ function readDiagramixUser() {
 
 function ResultPage() {
   const navigate = useNavigate()
+  const { confirmMessage, showMessage } = useAppMessage()
 
   const result = useMemo<DiagramixResult | null>(() => readDiagramixResult(), [])
+  const [projectId, setProjectId] = useState(() => result?.project_id)
+  const [projectName, setProjectName] = useState(() => result?.project_name ?? '')
+  const [generatedCode, setGeneratedCode] = useState(() => result?.generated_code ?? '')
+  const [savedProjectName, setSavedProjectName] = useState(() => result?.project_name ?? '')
+  const [savedGeneratedCode, setSavedGeneratedCode] = useState(() => result?.generated_code ?? '')
+  const [isSaved, setIsSaved] = useState(() => Boolean(result?.project_id))
+  const hasUnsavedChanges =
+    Boolean(result) &&
+    (!isSaved || projectName !== savedProjectName || generatedCode !== savedGeneratedCode)
+  const diagramLanguage = result?.diagram_language ?? 'Mermaid'
+  const returnButtonLabel = result?.source === 'generation' ? 'Назад' : 'Вернуться к проектам'
+  const returnButtonPath = result?.source === 'generation' ? '/generate' : '/'
+
+  const completeNavigation = useCallback(
+    (path: string, options?: { clearGenerationDraft?: boolean }) => {
+      if (options?.clearGenerationDraft) {
+        localStorage.removeItem('diagramix_generation_form')
+        localStorage.removeItem('diagramix_result')
+      }
+
+      navigate(path)
+    },
+    [navigate],
+  )
+
+  const navigateWithUnsavedCheck = useCallback(
+    async (path: string, options?: { clearGenerationDraft?: boolean }) => {
+      if (hasUnsavedChanges) {
+        const shouldLeave = await confirmMessage({
+          cancelLabel: 'Остаться',
+          confirmLabel: 'Да, все равно покинуть',
+          message:
+            'В проекте есть несохраненные изменения. Все равно хотите покинуть страницу без сохранения?',
+          title: 'Несохраненные изменения',
+        })
+
+        if (!shouldLeave) {
+          return
+        }
+      }
+
+      completeNavigation(path, options)
+    },
+    [completeNavigation, confirmMessage, hasUnsavedChanges],
+  )
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) {
+        return
+      }
+
+      event.preventDefault()
+      event.returnValue =
+        'В проекте есть несохраненные изменения. Все равно хотите покинуть страницу без сохранения?'
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [hasUnsavedChanges])
+
+  useEffect(() => {
+    const handleDocumentClick = async (event: MouseEvent) => {
+      if (!hasUnsavedChanges) {
+        return
+      }
+
+      const target = event.target
+
+      if (!(target instanceof Element)) {
+        return
+      }
+
+      const link = target.closest('a[href]')
+
+      if (!(link instanceof HTMLAnchorElement) || link.target === '_blank') {
+        return
+      }
+
+      const nextUrl = new URL(link.href)
+
+      if (nextUrl.origin !== window.location.origin) {
+        return
+      }
+
+      const nextPath = `${nextUrl.pathname}${nextUrl.search}${nextUrl.hash}`
+      const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`
+
+      if (nextPath === currentPath) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+      await navigateWithUnsavedCheck(nextPath)
+    }
+
+    document.addEventListener('click', handleDocumentClick, true)
+
+    return () => {
+      document.removeEventListener('click', handleDocumentClick, true)
+    }
+  }, [hasUnsavedChanges, navigateWithUnsavedCheck])
 
   const handleSave = async () => {
     const currentUser = readDiagramixUser()
 
     if (!currentUser) {
-      alert('Пользователь не авторизован')
+      showMessage({
+        message: 'Пользователь не авторизован',
+        title: 'Нет доступа',
+      })
       return
     }
 
     const currentResult = readDiagramixResult()
 
     if (!currentResult) {
-      alert('Нет данных для сохранения')
+      showMessage({
+        message: 'Нет данных для сохранения',
+        title: 'Нет данных',
+      })
+      return
+    }
+
+    if (!projectName.trim()) {
+      showMessage({
+        message: 'Введите название проекта',
+        title: 'Не все поля заполнены',
+      })
       return
     }
 
     try {
-      await createProject({
-        name: currentResult.project_name,
-        description: currentResult.description,
-        diagram_type: currentResult.diagram_type,
-        generated_code: currentResult.generated_code,
-        created_at: new Date().toISOString().slice(0, 10),
-        user_id: currentUser.id,
-      })
+      const savedProject = projectId
+        ? await updateProject(projectId, {
+            name: projectName.trim(),
+            description: currentResult.description,
+            diagram_type: currentResult.diagram_type,
+            diagram_language: currentResult.diagram_language ?? 'Mermaid',
+            generated_code: generatedCode,
+          })
+        : await createProject({
+            name: projectName.trim(),
+            description: currentResult.description,
+            diagram_type: currentResult.diagram_type,
+            diagram_language: currentResult.diagram_language ?? 'Mermaid',
+            generated_code: generatedCode,
+            created_at: new Date().toISOString().slice(0, 10),
+            user_id: currentUser.id,
+          })
 
-      alert('Проект сохранён')
+      const savedResult = {
+        ...currentResult,
+        project_id: savedProject.id,
+        project_name: savedProject.name,
+        diagram_language: savedProject.diagram_language,
+        generated_code: savedProject.generated_code ?? '',
+        user_id: savedProject.user_id,
+        message: 'Проект сохранён',
+      }
+
+      localStorage.setItem('diagramix_result', JSON.stringify(savedResult))
+      setProjectId(savedProject.id)
+      setProjectName(savedProject.name)
+      setGeneratedCode(savedProject.generated_code ?? '')
+      setSavedProjectName(savedProject.name)
+      setSavedGeneratedCode(savedProject.generated_code ?? '')
+      setIsSaved(true)
+
+      showMessage({
+        message: 'Проект сохранён',
+        title: 'Сохранено',
+      })
     } catch (error) {
       console.error('Ошибка сохранения проекта', {
         error,
         result: currentResult,
         user: currentUser,
       })
-      alert(error instanceof Error ? error.message : 'Ошибка при сохранении проекта')
+      showMessage({
+        message: error instanceof Error ? error.message : 'Ошибка при сохранении проекта',
+        title: 'Ошибка сохранения',
+      })
     }
   }
 
@@ -106,12 +265,31 @@ function ResultPage() {
   return (
     <section className="result-page" aria-labelledby="result-title">
       <header className="result-header">
-        <h1 id="result-title">Результат генерации</h1>
+        <div className="result-title-row">
+          <h1 id="result-title">Результат генерации</h1>
+          <button
+            className="result-button result-top-button"
+            type="button"
+            onClick={() => navigateWithUnsavedCheck(returnButtonPath)}
+          >
+            {returnButtonLabel}
+          </button>
+        </div>
         <p>
-          <strong>Название проекта:</strong> {result.project_name}
+          <strong>Название проекта:</strong>
         </p>
+        <label className="form-field generate-field">
+          <span className="visually-hidden">Название проекта</span>
+          <input
+            type="text"
+            value={projectName}
+            onChange={(event) => setProjectName(event.target.value)}
+          />
+        </label>
         <p>
           <strong>Тип диаграммы:</strong> {result.diagram_type}
+          <span> · </span>
+          <strong>Язык:</strong> {diagramLanguage}
         </p>
         <p>
           <strong>Описание:</strong> {result.description}
@@ -128,20 +306,27 @@ function ResultPage() {
 
       <section className="result-section" aria-labelledby="code-title">
         <h2 id="code-title">Сгенерированный код</h2>
-        <textarea className="code-output" value={result.generated_code} readOnly rows={6} />
+        <textarea
+          className="code-output"
+          value={generatedCode}
+          onChange={(event) => setGeneratedCode(event.target.value)}
+          rows={6}
+        />
       </section>
 
       <div className="result-actions">
         <button className="result-button result-button-primary" type="button" onClick={handleSave}>
           Сохранить
         </button>
-        <button className="result-button" type="button" onClick={() => navigate('/')}>
-          Назад
-        </button>
-        <button className="result-button result-button-primary" type="button" onClick={() => navigate('/')}>
+        <button
+          className="result-button"
+          type="button"
+          onClick={() => navigateWithUnsavedCheck('/generate', { clearGenerationDraft: true })}
+        >
           Сгенерировать заново
         </button>
       </div>
+
     </section>
   )
 }

@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute, { PublicRoute } from './components/ProtectedRoute'
 import MainLayout from './layouts/MainLayout'
 import HomePage from './pages/HomePage'
@@ -18,9 +18,10 @@ function App() {
 
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<ProjectsPage />} />
+          <Route path="/generate" element={<HomePage />} />
           <Route path="/result" element={<ResultPage />} />
-          <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/projects" element={<Navigate to="/" replace />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
