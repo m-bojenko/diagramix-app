@@ -401,7 +401,7 @@ h1 {
 
 .projects-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) minmax(120px, 0.55fr) minmax(120px, 0.55fr) 130px;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(120px, 0.55fr) minmax(120px, 0.55fr) 210px;
   align-items: center;
   gap: 18px;
   min-height: 56px;
@@ -424,6 +424,12 @@ h1 {
 
 .project-name {
   font-weight: 500;
+}
+
+.project-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .open-project-button {
@@ -764,6 +770,12 @@ h1 {
 
   .open-project-button {
     width: 100%;
+  }
+
+  .project-actions {
+    width: 100%;
+    flex-direction: column;
+    gap: 8px;
     margin-top: 6px;
   }
 

@@ -21,7 +21,8 @@ def create_project(db: Session, project: schemas.ProjectCreate):
         description=project.description,
         diagram_type=project.diagram_type,
         generated_code=project.generated_code,
-        created_at=project.created_at
+        created_at=project.created_at,
+        user_id=project.user_id
     )
     db.add(db_project)
     db.commit()
@@ -33,8 +34,23 @@ def get_projects(db: Session):
     return db.query(models.Project).all()
 
 
+def get_projects_by_user_id(db: Session, user_id: int):
+    return db.query(models.Project).filter(models.Project.user_id == user_id).all()
+
+
 def get_project_by_id(db: Session, project_id: int):
     return db.query(models.Project).filter(models.Project.id == project_id).first()
+
+
+def delete_project(db: Session, project_id: int):
+    project = get_project_by_id(db, project_id)
+
+    if not project:
+        return None
+
+    db.delete(project)
+    db.commit()
+    return project
 
 
 def get_user_by_email(db: Session, email: str):

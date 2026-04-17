@@ -8,8 +8,8 @@ router = APIRouter()
 
 
 @router.get("/", response_model=list[schemas.ProjectResponse])
-def get_projects(db: Session = Depends(get_db)):
-    return crud.get_projects(db)
+def get_projects(user_id: int, db: Session = Depends(get_db)):
+    return crud.get_projects_by_user_id(db, user_id)
 
 
 @router.get("/{project_id}", response_model=schemas.ProjectResponse)
@@ -23,3 +23,13 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
 @router.post("/", response_model=schemas.ProjectResponse)
 def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
     return crud.create_project(db, project)
+
+
+@router.delete("/{project_id}")
+def delete_project(project_id: int, db: Session = Depends(get_db)):
+    project = crud.delete_project(db, project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    return {"message": "Проект успешно удалён"}

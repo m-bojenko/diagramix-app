@@ -11,43 +11,76 @@ type DiagramixResult = {
   message?: string
 }
 
+type DiagramixUser = {
+  id: number
+}
+
+function readDiagramixResult() {
+  const savedResult = localStorage.getItem('diagramix_result')
+
+  if (!savedResult) {
+    return null
+  }
+
+  try {
+    return JSON.parse(savedResult) as DiagramixResult
+  } catch (error) {
+    console.error('Не удалось прочитать результат генерации из localStorage', error)
+    return null
+  }
+}
+
+function readDiagramixUser() {
+  const savedUser = localStorage.getItem('diagramix_user')
+
+  if (!savedUser) {
+    return null
+  }
+
+  try {
+    return JSON.parse(savedUser) as DiagramixUser
+  } catch (error) {
+    console.error('Не удалось прочитать пользователя из localStorage', error)
+    return null
+  }
+}
+
 function ResultPage() {
   const navigate = useNavigate()
 
-  const result = useMemo<DiagramixResult | null>(() => {
-    const savedResult = localStorage.getItem('diagramix_result')
-
-    if (!savedResult) {
-      return null
-    }
-
-    try {
-      return JSON.parse(savedResult) as DiagramixResult
-    } catch (error) {
-      console.error('Не удалось прочитать результат генерации из localStorage', error)
-      return null
-    }
-  }, [])
+  const result = useMemo<DiagramixResult | null>(() => readDiagramixResult(), [])
 
   const handleSave = async () => {
-    if (!result) {
+    const currentUser = readDiagramixUser()
+
+    if (!currentUser) {
+      alert('Пользователь не авторизован')
+      return
+    }
+
+    const currentResult = readDiagramixResult()
+
+    if (!currentResult) {
+      alert('Нет данных для сохранения')
       return
     }
 
     try {
       await createProject({
-        name: result.project_name,
-        description: result.description ?? '',
-        diagram_type: result.diagram_type,
-        generated_code: result.generated_code,
+        name: currentResult.project_name,
+        description: currentResult.description,
+        diagram_type: currentResult.diagram_type,
+        generated_code: currentResult.generated_code,
         created_at: new Date().toISOString().slice(0, 10),
+        user_id: currentUser.id,
       })
 
       alert('Проект сохранён')
     } catch (error) {
       console.error('Ошибка сохранения проекта', {
         error,
-        result,
+        result: currentResult,
+        user: currentUser,
       })
       alert(error instanceof Error ? error.message : 'Ошибка при сохранении проекта')
     }

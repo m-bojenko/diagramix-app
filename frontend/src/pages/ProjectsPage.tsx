@@ -1,7 +1,26 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { getProjects, type Project } from '../services/api'
+import { deleteProject, getProjects, type Project } from '../services/api'
+
+type CurrentUser = {
+  id: number
+}
+
+function readCurrentUser() {
+  const savedUser = localStorage.getItem('diagramix_user')
+
+  if (!savedUser) {
+    return null
+  }
+
+  try {
+    return JSON.parse(savedUser) as CurrentUser
+  } catch (error) {
+    console.error('Не удалось прочитать пользователя из localStorage', error)
+    return null
+  }
+}
 
 function ProjectsPage() {
   const navigate = useNavigate()
@@ -9,20 +28,30 @@ function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const loadProjects = async () => {
-      try {
-        const loadedProjects = await getProjects()
-        setProjects(loadedProjects)
-      } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'Ошибка при загрузке проектов')
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  const loadProjects = useCallback(async () => {
+    setIsLoading(true)
+    setError('')
 
+    try {
+      const currentUser = readCurrentUser()
+
+      if (!currentUser) {
+        navigate('/login')
+        return
+      }
+
+      const loadedProjects = await getProjects(currentUser.id)
+      setProjects(loadedProjects)
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : 'Ошибка при загрузке проектов')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [navigate])
+
+  useEffect(() => {
     loadProjects()
-  }, [])
+  }, [loadProjects])
 
   const handleOpenProject = (project: Project) => {
     localStorage.setItem(
@@ -37,6 +66,22 @@ function ProjectsPage() {
     )
 
     navigate('/result')
+  }
+
+  const handleDeleteProject = async (project: Project) => {
+    const shouldDelete = confirm('Удалить проект?')
+
+    if (!shouldDelete) {
+      return
+    }
+
+    try {
+      await deleteProject(project.id)
+      await loadProjects()
+    } catch (deleteError) {
+      console.error('Ошибка удаления проекта', deleteError)
+      alert(deleteError instanceof Error ? deleteError.message : 'Ошибка при удалении проекта')
+    }
   }
 
   return (
@@ -77,13 +122,20 @@ function ProjectsPage() {
               </span>
               <span role="cell">{project.diagram_type}</span>
               <span role="cell">{project.created_at}</span>
-              <span role="cell">
+              <span className="project-actions" role="cell">
                 <button
                   className="open-project-button"
                   type="button"
                   onClick={() => handleOpenProject(project)}
                 >
                   Открыть
+                </button>
+                <button
+                  className="open-project-button"
+                  type="button"
+                  onClick={() => handleDeleteProject(project)}
+                >
+                  Удалить
                 </button>
               </span>
             </div>

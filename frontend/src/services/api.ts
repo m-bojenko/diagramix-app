@@ -19,6 +19,7 @@ export type Project = {
   diagram_type: string
   generated_code?: string | null
   created_at: string
+  user_id: number
 }
 
 export type CreateProjectRequest = {
@@ -27,6 +28,26 @@ export type CreateProjectRequest = {
   diagram_type: string
   generated_code?: string | null
   created_at: string
+  user_id: number
+}
+
+export type User = {
+  id: number
+  name: string
+  email: string
+  role: string
+  created_at: string
+}
+
+export type RegisterUserRequest = {
+  name: string
+  email: string
+  password: string
+}
+
+export type LoginUserRequest = {
+  email: string
+  password: string
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
@@ -74,6 +95,38 @@ export async function generateDiagram(
   return response.json()
 }
 
+export async function registerUser(payload: RegisterUserRequest): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при регистрации'))
+  }
+
+  return response.json()
+}
+
+export async function loginUser(payload: LoginUserRequest): Promise<User> {
+  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при входе'))
+  }
+
+  return response.json()
+}
+
 export async function createProject(
   payload: CreateProjectRequest
 ): Promise<Project> {
@@ -92,11 +145,23 @@ export async function createProject(
   return response.json()
 }
 
-export async function getProjects(): Promise<Project[]> {
-  const response = await fetch(`${API_BASE_URL}/projects/`)
+export async function getProjects(userId: number): Promise<Project[]> {
+  const response = await fetch(`${API_BASE_URL}/projects/?user_id=${userId}`)
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении списка проектов'))
+  }
+
+  return response.json()
+}
+
+export async function deleteProject(projectId: number): Promise<{ message: string }> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при удалении проекта'))
   }
 
   return response.json()

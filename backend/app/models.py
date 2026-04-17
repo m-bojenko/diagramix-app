@@ -11,6 +11,7 @@ class Project(Base):
     diagram_type = Column(String, nullable=False)
     generated_code = Column(Text, nullable=True)
     created_at = Column(String, nullable=False)
+    user_id = Column(Integer, nullable=False)
 
 
 class User(Base):

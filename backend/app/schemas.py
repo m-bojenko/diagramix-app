@@ -11,12 +11,14 @@ class ProjectBase(BaseModel):
 class ProjectCreate(ProjectBase):
     generated_code: Optional[str] = None
     created_at: str
+    user_id: int
 
 
 class ProjectResponse(ProjectBase):
     id: int
     generated_code: Optional[str] = None
     created_at: str
+    user_id: int
 
     class Config:
         from_attributes = True

@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 function ProfilePage() {
   const navigate = useNavigate()
@@ -11,6 +11,11 @@ function ProfilePage() {
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     alert('Изменения сохранены')
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('diagramix_user')
+    navigate('/login', { replace: true })
   }
 
   return (
@@ -72,9 +77,9 @@ function ProfilePage() {
         </div>
 
         <div className="profile-logout">
-          <Link className="result-button logout-button" to="/login">
+          <button className="result-button logout-button" type="button" onClick={handleLogout}>
             Выйти из аккаунта
-          </Link>
+          </button>
         </div>
       </form>
     </section>
