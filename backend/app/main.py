@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 from app.database import Base, engine
-from app.routes import auth, projects, generate
+from app.routes import auth, projects, generate, preview
 
 Base.metadata.create_all(bind=engine)
 
@@ -53,6 +53,7 @@ app.add_middleware(
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(generate.router, prefix="/generate", tags=["Generate"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(preview.router, prefix="/preview", tags=["Preview"])
 
 
 @app.get("/")

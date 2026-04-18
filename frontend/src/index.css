@@ -34,6 +34,12 @@ textarea {
   font: inherit;
 }
 
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  background-color: #ffffff;
+}
+
 h1 {
   margin: 0;
   font-size: 32px;
@@ -159,7 +165,7 @@ h1 {
 .form-field select {
   width: 100%;
   color: #332b31;
-  background: #fffcff;
+  background-color: #ffffff;
   border: 1px solid #d9cbd2;
   border-radius: 10px;
   outline: none;
@@ -352,12 +358,35 @@ h1 {
   text-align: center;
 }
 
+.diagram-preview-rendered {
+  align-items: flex-start;
+  overflow: auto;
+}
+
+.diagram-preview-rendered img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: auto;
+}
+
+.diagram-preview-loading {
+  color: #746970;
+}
+
+.diagram-preview-error {
+  color: #9f244f;
+  background: #fff5fa;
+  border-color: #de8fb2;
+}
+
 .code-output {
   width: 100%;
   min-height: 150px;
   padding: 16px;
   color: #4b4349;
-  background: #fffdfd;
+  background: #ffffff;
   border: 1px solid #d9cbd2;
   border-radius: 10px;
   outline: none;
@@ -582,11 +611,16 @@ h1 {
   flex-direction: column;
 }
 
+.profile-input {
+  background: #ffffff;
+  border-color: #d9cbd2;
+}
+
 .profile-info {
   margin: 0 0 16px;
   padding: 14px 16px;
-  background: #ffffff;
-  border: 1px solid #d9cbd2;
+  background: #fff5fa;
+  border: 1px solid #ead7e2;
   border-radius: 10px;
 }
 
@@ -710,7 +744,7 @@ h1 {
   height: 52px;
   padding: 0 16px;
   color: #332b31;
-  background: #fffcff;
+  background: #ffffff;
   border: 1px solid #ead7e2;
   border-radius: 12px;
   outline: none;

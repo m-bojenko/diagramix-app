@@ -14,6 +14,14 @@ export type GenerateResponse = {
   message: string
 }
 
+export type DiagramPreviewRequest = {
+  code: string
+}
+
+export type DiagramPreviewResponse = {
+  svg: string
+}
+
 export type Project = {
   id: number
   name: string
@@ -108,6 +116,26 @@ export async function generateDiagram(
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при генерации диаграммы'))
+  }
+
+  return response.json()
+}
+
+export async function renderPlantUmlPreview(
+  payload: DiagramPreviewRequest,
+  options?: { signal?: AbortSignal }
+): Promise<DiagramPreviewResponse> {
+  const response = await fetch(`${API_BASE_URL}/preview/plantuml`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+    signal: options?.signal,
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при построении превью PlantUML'))
   }
 
   return response.json()

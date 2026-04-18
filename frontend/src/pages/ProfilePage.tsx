@@ -137,17 +137,28 @@ function ProfilePage() {
       <form className="profile-form" onSubmit={handleSubmit}>
         <label className="form-field generate-field">
           <span>Имя</span>
-          <input type="text" value={name} onChange={(event) => setName(event.target.value)} />
+          <input
+            className="profile-input"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+          />
         </label>
 
         <label className="form-field generate-field">
           <span>Email</span>
-          <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+          <input
+            className="profile-input"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+          />
         </label>
 
         <label className="form-field generate-field">
           <span>Новый пароль</span>
           <input
+            className="profile-input"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -158,6 +169,7 @@ function ProfilePage() {
         <label className="form-field generate-field">
           <span>Подтвердите пароль</span>
           <input
+            className="profile-input"
             type="password"
             value={passwordConfirm}
             onChange={(event) => setPasswordConfirm(event.target.value)}

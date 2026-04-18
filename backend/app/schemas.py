@@ -41,6 +41,14 @@ class GenerateResponse(GenerateRequest):
     message: str
 
 
+class DiagramPreviewRequest(BaseModel):
+    code: str
+
+
+class DiagramPreviewResponse(BaseModel):
+    svg: str
+
+
 class UserRegisterRequest(BaseModel):
     name: str
     email: str

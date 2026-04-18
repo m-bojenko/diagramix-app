@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import mermaid from 'mermaid'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppMessage } from '../components/AppMessageContext'
-import { createProject, updateProject } from '../services/api'
+import { createProject, renderPlantUmlPreview, updateProject } from '../services/api'
 
 type DiagramixResult = {
   project_id?: number
@@ -19,6 +20,15 @@ type DiagramixResult = {
 type DiagramixUser = {
   id: number
 }
+
+type DiagramPreviewState = {
+  status: 'empty' | 'loading' | 'ready' | 'error'
+  imageUrl?: string
+  message?: string
+}
+
+let mermaidInitialized = false
+let mermaidPreviewCounter = 0
 
 function readDiagramixResult() {
   const savedResult = localStorage.getItem('diagramix_result')
@@ -48,6 +58,168 @@ function readDiagramixUser() {
     console.error('Не удалось прочитать пользователя из localStorage', error)
     return null
   }
+}
+
+function initializeMermaid() {
+  if (mermaidInitialized) {
+    return
+  }
+
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    htmlLabels: false,
+    suppressErrorRendering: true,
+    theme: 'base',
+    themeVariables: {
+      background: '#ffffff',
+      primaryColor: '#fff5fa',
+      primaryBorderColor: '#de8fb2',
+      primaryTextColor: '#171315',
+      lineColor: '#c95586',
+      secondaryColor: '#f8fafc',
+      tertiaryColor: '#ffffff',
+    },
+  })
+
+  mermaidInitialized = true
+}
+
+function getPreviewErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return ''
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message
+  }
+
+  return fallback
+}
+
+function assertSvgDocument(svg: string) {
+  const parsedDocument = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  const parserError = parsedDocument.querySelector('parsererror')
+  const rootElement = parsedDocument.documentElement
+
+  if (parserError || rootElement.tagName.toLowerCase() !== 'svg') {
+    throw new Error('Сервер вернул не диаграмму. Попробуйте построить превью ещё раз.')
+  }
+}
+
+function DiagramPreview({ code, language }: { code: string; language: string }) {
+  const [preview, setPreview] = useState<DiagramPreviewState>({ status: 'empty' })
+  const imageUrlRef = useRef<string | null>(null)
+
+  const setPreviewImage = useCallback((svg: string) => {
+    assertSvgDocument(svg)
+
+    if (imageUrlRef.current) {
+      URL.revokeObjectURL(imageUrlRef.current)
+    }
+
+    const nextImageUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+    imageUrlRef.current = nextImageUrl
+    setPreview({ imageUrl: nextImageUrl, status: 'ready' })
+  }, [])
+
+  const clearPreviewImage = useCallback(() => {
+    if (imageUrlRef.current) {
+      URL.revokeObjectURL(imageUrlRef.current)
+      imageUrlRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      clearPreviewImage()
+    }
+  }, [clearPreviewImage])
+
+  useEffect(() => {
+    const trimmedCode = code.trim()
+
+    if (!trimmedCode) {
+      clearPreviewImage()
+      setPreview({ message: 'Код диаграммы пустой', status: 'empty' })
+      return
+    }
+
+    const abortController = new AbortController()
+    let isStale = false
+
+    clearPreviewImage()
+    setPreview({ message: 'Строим превью диаграммы...', status: 'loading' })
+
+    const renderTimer = window.setTimeout(async () => {
+      try {
+        if (language === 'PlantUML') {
+          const result = await renderPlantUmlPreview(
+            { code: trimmedCode },
+            { signal: abortController.signal },
+          )
+
+          if (!isStale) {
+            setPreviewImage(result.svg)
+          }
+
+          return
+        }
+
+        initializeMermaid()
+        await mermaid.parse(trimmedCode)
+
+        const previewId = `diagramix-mermaid-preview-${mermaidPreviewCounter++}`
+        const { svg } = await mermaid.render(previewId, trimmedCode)
+
+        if (!isStale) {
+          setPreviewImage(svg)
+        }
+      } catch (error) {
+        if (isStale || abortController.signal.aborted) {
+          return
+        }
+
+        console.error('Ошибка построения превью диаграммы', {
+          error,
+          language,
+        })
+
+        setPreview({
+          message:
+            language === 'PlantUML'
+              ? getPreviewErrorMessage(error, 'В PlantUML коде есть синтаксическая ошибка')
+              : 'В Mermaid коде есть синтаксическая ошибка',
+          status: 'error',
+        })
+      }
+    }, 250)
+
+    return () => {
+      isStale = true
+      abortController.abort()
+      window.clearTimeout(renderTimer)
+    }
+  }, [clearPreviewImage, code, language, setPreviewImage])
+
+  if (preview.status === 'ready' && preview.imageUrl) {
+    return (
+      <div className="diagram-preview diagram-preview-rendered">
+        <img src={preview.imageUrl} alt="Превью диаграммы" />
+      </div>
+    )
+  }
+
+  return (
+    <div className={`diagram-preview diagram-preview-${preview.status}`}>
+      <span>
+        {preview.message ??
+          (preview.status === 'error'
+            ? 'В коде диаграммы есть синтаксическая ошибка'
+            : 'Здесь будет отображаться сгенерированная диаграмма')}
+      </span>
+    </div>
+  )
 }
 
 function ResultPage() {
@@ -299,9 +471,7 @@ function ResultPage() {
 
       <section className="result-section" aria-labelledby="diagram-title">
         <h2 id="diagram-title">Сгенерированная диаграмма</h2>
-        <div className="diagram-preview">
-          <span>Здесь будет отображаться сгенерированная диаграмма</span>
-        </div>
+        <DiagramPreview code={generatedCode} language={diagramLanguage} />
       </section>
 
       <section className="result-section" aria-labelledby="code-title">
