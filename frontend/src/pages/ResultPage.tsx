@@ -3,7 +3,13 @@ import mermaid from 'mermaid'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppMessage } from '../components/AppMessageContext'
-import { createProject, renderPlantUmlPreview, updateProject } from '../services/api'
+import {
+  createProject,
+  exportDiagram,
+  renderPlantUmlPreview,
+  updateProject,
+  type DiagramExportFormat,
+} from '../services/api'
 
 type DiagramixResult = {
   project_id?: number
@@ -25,6 +31,11 @@ type DiagramPreviewState = {
   status: 'empty' | 'loading' | 'ready' | 'error'
   imageUrl?: string
   message?: string
+}
+
+type ExportOption = {
+  label: string
+  value: DiagramExportFormat
 }
 
 let mermaidInitialized = false
@@ -70,16 +81,6 @@ function initializeMermaid() {
     securityLevel: 'strict',
     htmlLabels: false,
     suppressErrorRendering: true,
-    theme: 'base',
-    themeVariables: {
-      background: '#ffffff',
-      primaryColor: '#fff5fa',
-      primaryBorderColor: '#de8fb2',
-      primaryTextColor: '#171315',
-      lineColor: '#c95586',
-      secondaryColor: '#f8fafc',
-      tertiaryColor: '#ffffff',
-    },
   })
 
   mermaidInitialized = true
@@ -107,28 +108,65 @@ function assertSvgDocument(svg: string) {
   }
 }
 
-function DiagramPreview({ code, language }: { code: string; language: string }) {
+async function renderMermaidSvg(code: string) {
+  initializeMermaid()
+  await mermaid.parse(code)
+
+  const previewId = `diagramix-mermaid-preview-${mermaidPreviewCounter++}`
+  const { svg } = await mermaid.render(previewId, code)
+  assertSvgDocument(svg)
+
+  return svg
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const downloadUrl = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = downloadUrl
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(downloadUrl)
+}
+
+function DiagramPreview({
+  code,
+  language,
+  onSvgChange,
+}: {
+  code: string
+  language: string
+  onSvgChange: (svg: string | null) => void
+}) {
   const [preview, setPreview] = useState<DiagramPreviewState>({ status: 'empty' })
   const imageUrlRef = useRef<string | null>(null)
 
-  const setPreviewImage = useCallback((svg: string) => {
-    assertSvgDocument(svg)
+  const setPreviewImage = useCallback(
+    (svg: string) => {
+      assertSvgDocument(svg)
 
-    if (imageUrlRef.current) {
-      URL.revokeObjectURL(imageUrlRef.current)
-    }
+      if (imageUrlRef.current) {
+        URL.revokeObjectURL(imageUrlRef.current)
+      }
 
-    const nextImageUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
-    imageUrlRef.current = nextImageUrl
-    setPreview({ imageUrl: nextImageUrl, status: 'ready' })
-  }, [])
+      const nextImageUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+      imageUrlRef.current = nextImageUrl
+      onSvgChange(svg)
+      setPreview({ imageUrl: nextImageUrl, status: 'ready' })
+    },
+    [onSvgChange],
+  )
 
   const clearPreviewImage = useCallback(() => {
     if (imageUrlRef.current) {
       URL.revokeObjectURL(imageUrlRef.current)
       imageUrlRef.current = null
     }
-  }, [])
+
+    onSvgChange(null)
+  }, [onSvgChange])
 
   useEffect(() => {
     return () => {
@@ -141,15 +179,22 @@ function DiagramPreview({ code, language }: { code: string; language: string }) 
 
     if (!trimmedCode) {
       clearPreviewImage()
-      setPreview({ message: 'Код диаграммы пустой', status: 'empty' })
-      return
+      const emptyPreviewTimer = window.setTimeout(() => {
+        setPreview({ message: 'Код диаграммы пустой', status: 'empty' })
+      }, 0)
+
+      return () => {
+        window.clearTimeout(emptyPreviewTimer)
+      }
     }
 
     const abortController = new AbortController()
     let isStale = false
 
     clearPreviewImage()
-    setPreview({ message: 'Строим превью диаграммы...', status: 'loading' })
+    const loadingTimer = window.setTimeout(() => {
+      setPreview({ message: 'Строим превью диаграммы...', status: 'loading' })
+    }, 0)
 
     const renderTimer = window.setTimeout(async () => {
       try {
@@ -166,11 +211,7 @@ function DiagramPreview({ code, language }: { code: string; language: string }) 
           return
         }
 
-        initializeMermaid()
-        await mermaid.parse(trimmedCode)
-
-        const previewId = `diagramix-mermaid-preview-${mermaidPreviewCounter++}`
-        const { svg } = await mermaid.render(previewId, trimmedCode)
+        const svg = await renderMermaidSvg(trimmedCode)
 
         if (!isStale) {
           setPreviewImage(svg)
@@ -198,6 +239,7 @@ function DiagramPreview({ code, language }: { code: string; language: string }) 
     return () => {
       isStale = true
       abortController.abort()
+      window.clearTimeout(loadingTimer)
       window.clearTimeout(renderTimer)
     }
   }, [clearPreviewImage, code, language, setPreviewImage])
@@ -233,10 +275,27 @@ function ResultPage() {
   const [savedProjectName, setSavedProjectName] = useState(() => result?.project_name ?? '')
   const [savedGeneratedCode, setSavedGeneratedCode] = useState(() => result?.generated_code ?? '')
   const [isSaved, setIsSaved] = useState(() => Boolean(result?.project_id))
+  const [renderedSvg, setRenderedSvg] = useState<string | null>(null)
+  const [exportFormat, setExportFormat] = useState<DiagramExportFormat>('txt')
   const hasUnsavedChanges =
     Boolean(result) &&
     (!isSaved || projectName !== savedProjectName || generatedCode !== savedGeneratedCode)
   const diagramLanguage = result?.diagram_language ?? 'Mermaid'
+  const exportOptions = useMemo<ExportOption[]>(() => {
+    const sourceOption: ExportOption =
+      diagramLanguage === 'PlantUML'
+        ? { label: 'PlantUML (.puml)', value: 'puml' }
+        : { label: 'Mermaid (.mmd)', value: 'mmd' }
+
+    return [
+      { label: 'Текст (.txt)', value: 'txt' },
+      sourceOption,
+      { label: 'SVG (.svg)', value: 'svg' },
+    ]
+  }, [diagramLanguage])
+  const selectedExportFormat = exportOptions.some((option) => option.value === exportFormat)
+    ? exportFormat
+    : 'txt'
   const returnButtonLabel = result?.source === 'generation' ? 'Назад' : 'Вернуться к проектам'
   const returnButtonPath = result?.source === 'generation' ? '/generate' : '/'
 
@@ -417,6 +476,52 @@ function ResultPage() {
     }
   }
 
+  const handleExport = async () => {
+    if (!result) {
+      showMessage({
+        message: 'Нет данных для экспорта',
+        title: 'Нет данных',
+      })
+      return
+    }
+
+    if (!generatedCode.trim()) {
+      showMessage({
+        message: 'Нет кода диаграммы для экспорта',
+        title: 'Нет данных',
+      })
+      return
+    }
+
+    try {
+      let svg = renderedSvg ?? undefined
+
+      if (selectedExportFormat === 'svg' && diagramLanguage === 'Mermaid' && !svg) {
+        svg = await renderMermaidSvg(generatedCode.trim())
+      }
+
+      const exportedFile = await exportDiagram({
+        code: generatedCode,
+        diagram_language: diagramLanguage,
+        format: selectedExportFormat,
+        project_name: projectName.trim() || result.project_name,
+        svg: selectedExportFormat === 'svg' ? svg : undefined,
+      })
+
+      downloadBlob(exportedFile.blob, exportedFile.filename)
+    } catch (error) {
+      console.error('Ошибка экспорта диаграммы', {
+        error,
+        exportFormat: selectedExportFormat,
+        language: diagramLanguage,
+      })
+      showMessage({
+        message: error instanceof Error ? error.message : 'Не удалось экспортировать диаграмму',
+        title: 'Ошибка экспорта',
+      })
+    }
+  }
+
   if (!result) {
     return (
       <section className="result-page" aria-labelledby="result-title">
@@ -471,7 +576,7 @@ function ResultPage() {
 
       <section className="result-section" aria-labelledby="diagram-title">
         <h2 id="diagram-title">Сгенерированная диаграмма</h2>
-        <DiagramPreview code={generatedCode} language={diagramLanguage} />
+        <DiagramPreview code={generatedCode} language={diagramLanguage} onSvgChange={setRenderedSvg} />
       </section>
 
       <section className="result-section" aria-labelledby="code-title">
@@ -496,6 +601,29 @@ function ResultPage() {
           Сгенерировать заново
         </button>
       </div>
+
+      <section className="export-panel" aria-labelledby="export-title">
+        <div>
+          <h2 id="export-title">Экспорт</h2>
+          <p>Скачайте код диаграммы или текущий SVG-превью.</p>
+        </div>
+        <label className="export-control">
+          <span>Формат</span>
+          <select
+            value={selectedExportFormat}
+            onChange={(event) => setExportFormat(event.target.value as DiagramExportFormat)}
+          >
+            {exportOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button className="result-button" type="button" onClick={handleExport}>
+          Экспорт
+        </button>
+      </section>
 
     </section>
   )

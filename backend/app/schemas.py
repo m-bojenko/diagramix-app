@@ -49,6 +49,14 @@ class DiagramPreviewResponse(BaseModel):
     svg: str
 
 
+class DiagramExportRequest(BaseModel):
+    project_name: str
+    diagram_language: str
+    code: str
+    format: str
+    svg: Optional[str] = None
+
+
 class UserRegisterRequest(BaseModel):
     name: str
     email: str

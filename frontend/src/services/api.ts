@@ -22,6 +22,21 @@ export type DiagramPreviewResponse = {
   svg: string
 }
 
+export type DiagramExportFormat = 'txt' | 'mmd' | 'puml' | 'svg'
+
+export type DiagramExportRequest = {
+  project_name: string
+  diagram_language: string
+  code: string
+  format: DiagramExportFormat
+  svg?: string
+}
+
+export type DiagramExportResponse = {
+  blob: Blob
+  filename: string
+}
+
 export type Project = {
   id: number
   name: string
@@ -103,6 +118,22 @@ async function getApiErrorMessage(response: Response, fallbackMessage: string) {
   return `${fallbackMessage}. Статус: ${response.status}`
 }
 
+function getFilenameFromContentDisposition(value: string | null) {
+  if (!value) {
+    return null
+  }
+
+  const encodedFilenameMatch = value.match(/filename\*=UTF-8''([^;]+)/i)
+
+  if (encodedFilenameMatch?.[1]) {
+    return decodeURIComponent(encodedFilenameMatch[1])
+  }
+
+  const filenameMatch = value.match(/filename="([^"]+)"/i)
+
+  return filenameMatch?.[1] ?? null
+}
+
 export async function generateDiagram(
   payload: GenerateRequest
 ): Promise<GenerateResponse> {
@@ -139,6 +170,27 @@ export async function renderPlantUmlPreview(
   }
 
   return response.json()
+}
+
+export async function exportDiagram(payload: DiagramExportRequest): Promise<DiagramExportResponse> {
+  const response = await fetch(`${API_BASE_URL}/export/diagram`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при экспорте диаграммы'))
+  }
+
+  const blob = await response.blob()
+  const filename =
+    getFilenameFromContentDisposition(response.headers.get('Content-Disposition')) ??
+    `diagramix.${payload.format}`
+
+  return { blob, filename }
 }
 
 export async function registerUser(payload: RegisterUserRequest): Promise<User> {

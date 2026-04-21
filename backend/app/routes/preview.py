@@ -19,6 +19,11 @@ PLANTUML_SERVER_URL = os.getenv(
 ).rstrip("/")
 
 PLANTUML_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
+LOCAL_SVG_TEXT_COLOR = "#111111"
+LOCAL_SVG_STROKE_COLOR = "#222222"
+LOCAL_SVG_BORDER_COLOR = "#555555"
+LOCAL_SVG_LIGHT_FILL = "#f7f7f7"
+LOCAL_SVG_PANEL_BORDER = "#bbbbbb"
 
 
 def _encode_plantuml_chunk(chunk: bytes) -> str:
@@ -90,7 +95,7 @@ def _wrap_svg(width: int, height: int, body: str) -> str:
         "<defs>"
         '<marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" '
         'orient="auto" markerUnits="strokeWidth">'
-        '<path d="M0,0 L0,6 L9,3 z" fill="#c95586" />'
+        f'<path d="M0,0 L0,6 L9,3 z" fill="{LOCAL_SVG_STROKE_COLOR}" />'
         "</marker>"
         "</defs>"
         '<rect width="100%" height="100%" fill="#ffffff" />'
@@ -102,15 +107,22 @@ def _wrap_svg(width: int, height: int, body: str) -> str:
 def _text(x: int, y: int, value: str, size: int = 14, anchor: str = "middle") -> str:
     return (
         f'<text x="{x}" y="{y}" text-anchor="{anchor}" '
-        f'font-family="Arial, sans-serif" font-size="{size}" fill="#171315">'
+        f'font-family="Arial, sans-serif" font-size="{size}" fill="{LOCAL_SVG_TEXT_COLOR}">'
         f"{_svg_text(value)}</text>"
     )
 
 
-def _box(x: int, y: int, width: int, height: int, label: str, fill: str = "#fff5fa") -> str:
+def _box(
+    x: int,
+    y: int,
+    width: int,
+    height: int,
+    label: str,
+    fill: str = LOCAL_SVG_LIGHT_FILL,
+) -> str:
     return (
         f'<rect x="{x}" y="{y}" width="{width}" height="{height}" rx="8" '
-        f'fill="{fill}" stroke="#de8fb2" stroke-width="1.5" />'
+        f'fill="{fill}" stroke="{LOCAL_SVG_BORDER_COLOR}" stroke-width="1.5" />'
         + _text(x + width // 2, y + height // 2 + 5, label)
     )
 
@@ -118,7 +130,7 @@ def _box(x: int, y: int, width: int, height: int, label: str, fill: str = "#fff5
 def _line(x1: int, y1: int, x2: int, y2: int) -> str:
     return (
         f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-        'stroke="#c95586" stroke-width="1.7" marker-end="url(#arrow)" />'
+        f'stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.7" marker-end="url(#arrow)" />'
     )
 
 
@@ -139,20 +151,20 @@ def _render_local_usecase(code: str) -> Optional[str]:
     system_height = height - 135
     body = [
         _text(width // 2, 34, title, 18),
-        f'<circle cx="{actor_x}" cy="{actor_y}" r="18" fill="#ffffff" stroke="#c95586" stroke-width="1.8" />',
-        f'<line x1="{actor_x}" y1="{actor_y + 18}" x2="{actor_x}" y2="{actor_y + 78}" stroke="#c95586" stroke-width="1.8" />',
-        f'<line x1="{actor_x - 32}" y1="{actor_y + 42}" x2="{actor_x + 32}" y2="{actor_y + 42}" stroke="#c95586" stroke-width="1.8" />',
-        f'<line x1="{actor_x}" y1="{actor_y + 78}" x2="{actor_x - 28}" y2="{actor_y + 118}" stroke="#c95586" stroke-width="1.8" />',
-        f'<line x1="{actor_x}" y1="{actor_y + 78}" x2="{actor_x + 28}" y2="{actor_y + 118}" stroke="#c95586" stroke-width="1.8" />',
+        f'<circle cx="{actor_x}" cy="{actor_y}" r="18" fill="#ffffff" stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.8" />',
+        f'<line x1="{actor_x}" y1="{actor_y + 18}" x2="{actor_x}" y2="{actor_y + 78}" stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.8" />',
+        f'<line x1="{actor_x - 32}" y1="{actor_y + 42}" x2="{actor_x + 32}" y2="{actor_y + 42}" stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.8" />',
+        f'<line x1="{actor_x}" y1="{actor_y + 78}" x2="{actor_x - 28}" y2="{actor_y + 118}" stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.8" />',
+        f'<line x1="{actor_x}" y1="{actor_y + 78}" x2="{actor_x + 28}" y2="{actor_y + 118}" stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.8" />',
         _text(actor_x, actor_y + 148, "Пользователь"),
-        f'<rect x="{system_x}" y="{system_y}" width="{system_width}" height="{system_height}" rx="8" fill="#ffffff" stroke="#ead7e2" stroke-width="1.5" />',
+        f'<rect x="{system_x}" y="{system_y}" width="{system_width}" height="{system_height}" rx="8" fill="#ffffff" stroke="{LOCAL_SVG_PANEL_BORDER}" stroke-width="1.5" />',
     ]
 
     for index, (label, _) in enumerate(usecases):
         cy = system_y + 65 + index * 72
         body.append(
             f'<ellipse cx="{system_x + 245}" cy="{cy}" rx="145" ry="28" '
-            'fill="#fff5fa" stroke="#de8fb2" stroke-width="1.5" />'
+            f'fill="{LOCAL_SVG_LIGHT_FILL}" stroke="{LOCAL_SVG_BORDER_COLOR}" stroke-width="1.5" />'
         )
         body.append(_text(system_x + 245, cy + 5, label))
         body.append(_line(actor_x + 34, actor_y + 42, system_x + 100, cy))
@@ -173,7 +185,7 @@ def _render_local_activity(code: str) -> Optional[str]:
     y = 78
     body = [
         _text(center_x, 34, title, 18),
-        f'<circle cx="{center_x}" cy="{y}" r="13" fill="#c95586" />',
+        f'<circle cx="{center_x}" cy="{y}" r="13" fill="{LOCAL_SVG_STROKE_COLOR}" />',
     ]
 
     previous_y = y + 13
@@ -186,8 +198,11 @@ def _render_local_activity(code: str) -> Optional[str]:
 
     y += 72
     body.append(_line(center_x, previous_y, center_x, y - 16))
-    body.append(f'<circle cx="{center_x}" cy="{y}" r="16" fill="#ffffff" stroke="#c95586" stroke-width="2" />')
-    body.append(f'<circle cx="{center_x}" cy="{y}" r="9" fill="#c95586" />')
+    body.append(
+        f'<circle cx="{center_x}" cy="{y}" r="16" fill="#ffffff" '
+        f'stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="2" />'
+    )
+    body.append(f'<circle cx="{center_x}" cy="{y}" r="9" fill="{LOCAL_SVG_STROKE_COLOR}" />')
 
     return _wrap_svg(width, height, "".join(body))
 
@@ -222,11 +237,11 @@ def _render_local_er(code: str) -> Optional[str]:
         positions[name] = (x, y, 190, box_height)
         body.append(
             f'<rect x="{x}" y="{y}" width="190" height="{box_height}" rx="8" '
-            'fill="#ffffff" stroke="#de8fb2" stroke-width="1.5" />'
+            f'fill="#ffffff" stroke="{LOCAL_SVG_BORDER_COLOR}" stroke-width="1.5" />'
         )
         body.append(
             f'<rect x="{x}" y="{y}" width="190" height="42" rx="8" '
-            'fill="#fff5fa" stroke="#de8fb2" stroke-width="1.5" />'
+            f'fill="{LOCAL_SVG_LIGHT_FILL}" stroke="{LOCAL_SVG_BORDER_COLOR}" stroke-width="1.5" />'
         )
         body.append(_text(x + 95, y + 27, name, 15))
 
@@ -242,7 +257,7 @@ def _render_local_er(code: str) -> Optional[str]:
         body.append(
             f'<line x1="{left_x + left_width}" y1="{left_y + left_height // 2}" '
             f'x2="{right_x}" y2="{right_y + right_height // 2}" '
-            'stroke="#c95586" stroke-width="1.7" />'
+            f'stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="1.7" />'
         )
 
     return _wrap_svg(width, height, "".join(body))
