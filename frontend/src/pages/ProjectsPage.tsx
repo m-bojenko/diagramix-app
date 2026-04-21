@@ -56,6 +56,8 @@ function ProjectsPage() {
   }, [loadProjects])
 
   const handleOpenProject = (project: Project) => {
+    sessionStorage.removeItem('diagramix_pending_project_file')
+
     localStorage.setItem(
       'diagramix_result',
       JSON.stringify({
@@ -101,6 +103,7 @@ function ProjectsPage() {
   const handleCreateProject = () => {
     localStorage.removeItem('diagramix_generation_form')
     localStorage.removeItem('diagramix_result')
+    sessionStorage.removeItem('diagramix_pending_project_file')
     navigate('/generate')
   }
 

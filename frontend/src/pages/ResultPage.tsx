@@ -5,10 +5,14 @@ import { useNavigate } from 'react-router-dom'
 import { useAppMessage } from '../components/AppMessageContext'
 import {
   createProject,
+  downloadProjectFile,
   exportDiagram,
+  getProjectFileInfo,
   renderPlantUmlPreview,
   updateProject,
+  uploadProjectFile,
   type DiagramExportFormat,
+  type ProjectFileInfo,
 } from '../services/api'
 
 type DiagramixResult = {
@@ -21,10 +25,21 @@ type DiagramixResult = {
   source?: 'generation' | 'project'
   user_id?: number
   message?: string
+  pending_file?: PendingProjectFileInfo
 }
 
 type DiagramixUser = {
   id: number
+}
+
+type PendingProjectFileInfo = {
+  filename: string
+  mime_type: string
+  size: number
+}
+
+type PendingProjectFile = PendingProjectFileInfo & {
+  data: string
 }
 
 type DiagramPreviewState = {
@@ -37,6 +52,8 @@ type ExportOption = {
   label: string
   value: DiagramExportFormat
 }
+
+const PENDING_PROJECT_FILE_KEY = 'diagramix_pending_project_file'
 
 let mermaidInitialized = false
 let mermaidPreviewCounter = 0
@@ -69,6 +86,42 @@ function readDiagramixUser() {
     console.error('Не удалось прочитать пользователя из localStorage', error)
     return null
   }
+}
+
+function readPendingProjectFile() {
+  const savedFile = sessionStorage.getItem(PENDING_PROJECT_FILE_KEY)
+
+  if (!savedFile) {
+    return null
+  }
+
+  try {
+    return JSON.parse(savedFile) as PendingProjectFile
+  } catch (error) {
+    console.error('Не удалось прочитать временный файл проекта', error)
+    return null
+  }
+}
+
+async function pendingProjectFileToFile(pendingFile: PendingProjectFile) {
+  const response = await fetch(pendingFile.data)
+  const blob = await response.blob()
+
+  return new File([blob], pendingFile.filename, {
+    type: pendingFile.mime_type,
+  })
+}
+
+function formatFileSize(size: number) {
+  if (size < 1024) {
+    return `${size} Б`
+  }
+
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} КБ`
+  }
+
+  return `${(size / (1024 * 1024)).toFixed(1)} МБ`
 }
 
 function initializeMermaid() {
@@ -277,6 +330,10 @@ function ResultPage() {
   const [isSaved, setIsSaved] = useState(() => Boolean(result?.project_id))
   const [renderedSvg, setRenderedSvg] = useState<string | null>(null)
   const [exportFormat, setExportFormat] = useState<DiagramExportFormat>('txt')
+  const [projectFile, setProjectFile] = useState<ProjectFileInfo | null>(null)
+  const [pendingProjectFile, setPendingProjectFile] = useState<PendingProjectFile | null>(() =>
+    readPendingProjectFile(),
+  )
   const hasUnsavedChanges =
     Boolean(result) &&
     (!isSaved || projectName !== savedProjectName || generatedCode !== savedGeneratedCode)
@@ -393,6 +450,28 @@ function ResultPage() {
     }
   }, [hasUnsavedChanges, navigateWithUnsavedCheck])
 
+  useEffect(() => {
+    if (!projectId) {
+      return
+    }
+
+    let isStale = false
+
+    getProjectFileInfo(projectId)
+      .then((fileInfo) => {
+        if (!isStale) {
+          setProjectFile(fileInfo)
+        }
+      })
+      .catch((error) => {
+        console.error('Ошибка получения файла проекта', error)
+      })
+
+    return () => {
+      isStale = true
+    }
+  }, [projectId])
+
   const handleSave = async () => {
     const currentUser = readDiagramixUser()
 
@@ -441,6 +520,14 @@ function ResultPage() {
             user_id: currentUser.id,
           })
 
+      if (pendingProjectFile) {
+        const fileToUpload = await pendingProjectFileToFile(pendingProjectFile)
+        const uploadedFile = await uploadProjectFile(savedProject.id, fileToUpload)
+        setProjectFile(uploadedFile)
+        setPendingProjectFile(null)
+        sessionStorage.removeItem(PENDING_PROJECT_FILE_KEY)
+      }
+
       const savedResult = {
         ...currentResult,
         project_id: savedProject.id,
@@ -449,6 +536,7 @@ function ResultPage() {
         generated_code: savedProject.generated_code ?? '',
         user_id: savedProject.user_id,
         message: 'Проект сохранён',
+        pending_file: undefined,
       }
 
       localStorage.setItem('diagramix_result', JSON.stringify(savedResult))
@@ -522,6 +610,27 @@ function ResultPage() {
     }
   }
 
+  const handleDownloadProjectFile = async () => {
+    if (!projectId) {
+      showMessage({
+        message: 'Сначала сохраните проект',
+        title: 'Файл ещё не сохранён',
+      })
+      return
+    }
+
+    try {
+      const downloadedFile = await downloadProjectFile(projectId)
+      downloadBlob(downloadedFile.blob, downloadedFile.filename)
+    } catch (error) {
+      console.error('Ошибка скачивания файла проекта', error)
+      showMessage({
+        message: error instanceof Error ? error.message : 'Не удалось скачать файл',
+        title: 'Ошибка скачивания',
+      })
+    }
+  }
+
   if (!result) {
     return (
       <section className="result-page" aria-labelledby="result-title">
@@ -587,6 +696,29 @@ function ResultPage() {
           onChange={(event) => setGeneratedCode(event.target.value)}
           rows={6}
         />
+      </section>
+
+      <section className="project-file-panel" aria-labelledby="project-file-title">
+        <div>
+          <h2 id="project-file-title">Файл проекта</h2>
+          {projectFile ? (
+            <p>
+              {projectFile.filename} · {formatFileSize(projectFile.size)}
+            </p>
+          ) : pendingProjectFile ? (
+            <p>
+              {pendingProjectFile.filename} · {formatFileSize(pendingProjectFile.size)} · будет сохранён
+              вместе с проектом
+            </p>
+          ) : (
+            <p>Файл не загружен</p>
+          )}
+        </div>
+        {projectFile ? (
+          <button className="result-button" type="button" onClick={handleDownloadProjectFile}>
+            Скачать файл
+          </button>
+        ) : null}
       </section>
 
       <div className="result-actions">

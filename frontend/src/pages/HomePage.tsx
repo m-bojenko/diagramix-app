@@ -11,6 +11,38 @@ type GenerationFormDraft = {
   diagram_language: string
 }
 
+type PendingProjectFile = {
+  data: string
+  filename: string
+  mime_type: string
+  size: number
+}
+
+const PENDING_PROJECT_FILE_KEY = 'diagramix_pending_project_file'
+const MAX_PROJECT_FILE_SIZE = 10 * 1024 * 1024
+const SUPPORTED_PROJECT_FILE_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+])
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+
+    reader.addEventListener('load', () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result)
+        return
+      }
+
+      reject(new Error('Не удалось прочитать файл'))
+    })
+    reader.addEventListener('error', () => reject(new Error('Не удалось прочитать файл')))
+    reader.readAsDataURL(file)
+  })
+}
+
 function readGenerationFormDraft() {
   const savedDraft = localStorage.getItem('diagramix_generation_form')
 
@@ -35,9 +67,34 @@ function HomePage() {
   const [diagramType, setDiagramType] = useState(() => draft?.diagram_type ?? 'Use Case')
   const [diagramLanguage, setDiagramLanguage] = useState(() => draft?.diagram_language ?? 'Mermaid')
   const [fileName, setFileName] = useState('Файл не выбран')
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
+
+    if (file && !SUPPORTED_PROJECT_FILE_TYPES.has(file.type)) {
+      showMessage({
+        message: 'Поддерживаются только PDF, DOC и DOCX',
+        title: 'Неподдерживаемый файл',
+      })
+      event.target.value = ''
+      setSelectedFile(null)
+      setFileName('Файл не выбран')
+      return
+    }
+
+    if (file && file.size > MAX_PROJECT_FILE_SIZE) {
+      showMessage({
+        message: 'Размер файла не должен превышать 10 МБ',
+        title: 'Файл слишком большой',
+      })
+      event.target.value = ''
+      setSelectedFile(null)
+      setFileName('Файл не выбран')
+      return
+    }
+
+    setSelectedFile(file ?? null)
     setFileName(file ? file.name : 'Файл не выбран')
   }
 
@@ -62,6 +119,19 @@ function HomePage() {
     try {
       localStorage.setItem('diagramix_generation_form', JSON.stringify(requestPayload))
 
+      if (selectedFile) {
+        const fileData = await readFileAsDataUrl(selectedFile)
+        const pendingFile: PendingProjectFile = {
+          data: fileData,
+          filename: selectedFile.name,
+          mime_type: selectedFile.type || 'application/octet-stream',
+          size: selectedFile.size,
+        }
+        sessionStorage.setItem(PENDING_PROJECT_FILE_KEY, JSON.stringify(pendingFile))
+      } else {
+        sessionStorage.removeItem(PENDING_PROJECT_FILE_KEY)
+      }
+
       const result = await generateDiagram(requestPayload)
 
       localStorage.setItem(
@@ -74,6 +144,13 @@ function HomePage() {
           generated_code: result.generated_code,
           source: 'generation',
           message: result.message,
+          pending_file: selectedFile
+            ? {
+                filename: selectedFile.name,
+                mime_type: selectedFile.type || 'application/octet-stream',
+                size: selectedFile.size,
+              }
+            : undefined,
         }),
       )
 

@@ -48,6 +48,15 @@ export type Project = {
   user_id: number
 }
 
+export type ProjectFileInfo = {
+  id: number
+  project_id: number
+  filename: string
+  mime_type: string
+  size: number
+  uploaded_at: string
+}
+
 export type CreateProjectRequest = {
   name: string
   description: string
@@ -298,6 +307,51 @@ export async function deleteProject(projectId: number): Promise<{ message: strin
   }
 
   return response.json()
+}
+
+export async function uploadProjectFile(projectId: number, file: File): Promise<ProjectFileInfo> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/file`, {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при загрузке файла проекта'))
+  }
+
+  return response.json()
+}
+
+export async function getProjectFileInfo(projectId: number): Promise<ProjectFileInfo | null> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/file`)
+
+  if (response.status === 404) {
+    return null
+  }
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении файла проекта'))
+  }
+
+  return response.json()
+}
+
+export async function downloadProjectFile(projectId: number): Promise<DiagramExportResponse> {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/file/download`)
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при скачивании файла проекта'))
+  }
+
+  const blob = await response.blob()
+  const filename =
+    getFilenameFromContentDisposition(response.headers.get('Content-Disposition')) ??
+    'diagramix_file'
+
+  return { blob, filename }
 }
 
 export async function getProjectById(projectId: number): Promise<Project> {

@@ -29,6 +29,18 @@ class ProjectResponse(ProjectBase):
         from_attributes = True
 
 
+class ProjectFileResponse(BaseModel):
+    id: int
+    project_id: int
+    filename: str
+    mime_type: str
+    size: int
+    uploaded_at: str
+
+    class Config:
+        from_attributes = True
+
+
 class GenerateRequest(BaseModel):
     project_name: str
     description: str

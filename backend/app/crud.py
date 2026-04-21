@@ -65,9 +65,65 @@ def delete_project(db: Session, project_id: int):
     if not project:
         return None
 
+    delete_project_file(db, project_id, commit=False)
     db.delete(project)
     db.commit()
     return project
+
+
+def get_project_file(db: Session, project_id: int):
+    return (
+        db.query(models.ProjectFile)
+        .filter(models.ProjectFile.project_id == project_id)
+        .first()
+    )
+
+
+def upsert_project_file(
+    db: Session,
+    project_id: int,
+    filename: str,
+    mime_type: str,
+    size: int,
+    content: bytes,
+    uploaded_at: str,
+):
+    project_file = get_project_file(db, project_id)
+
+    if project_file:
+        project_file.filename = filename
+        project_file.mime_type = mime_type
+        project_file.size = size
+        project_file.content = content
+        project_file.uploaded_at = uploaded_at
+    else:
+        project_file = models.ProjectFile(
+            project_id=project_id,
+            filename=filename,
+            mime_type=mime_type,
+            size=size,
+            content=content,
+            uploaded_at=uploaded_at,
+        )
+        db.add(project_file)
+
+    db.commit()
+    db.refresh(project_file)
+    return project_file
+
+
+def delete_project_file(db: Session, project_id: int, commit: bool = True):
+    project_file = get_project_file(db, project_id)
+
+    if not project_file:
+        return None
+
+    db.delete(project_file)
+
+    if commit:
+        db.commit()
+
+    return project_file
 
 
 def get_user_by_email(db: Session, email: str):
