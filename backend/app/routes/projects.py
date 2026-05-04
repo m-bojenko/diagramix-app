@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFil
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
+from app.auth_utils import get_current_user
 from app.database import get_db
 
 router = APIRouter()
@@ -36,21 +37,40 @@ def _file_download_response(project_file):
     )
 
 
+def _ensure_project_access(project, current_user):
+    if project.user_id != current_user.id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Нет доступа к проекту")
+
+
 @router.get("/", response_model=list[schemas.ProjectResponse])
-def get_projects(user_id: int, db: Session = Depends(get_db)):
-    return crud.get_projects_by_user_id(db, user_id)
+def get_projects(current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    if current_user.role == "admin":
+        return crud.get_projects(db)
+
+    return crud.get_projects_by_user_id(db, current_user.id)
 
 
 @router.get("/{project_id}", response_model=schemas.ProjectResponse)
-def get_project(project_id: int, db: Session = Depends(get_db)):
+def get_project(
+    project_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     project = crud.get_project_by_id(db, project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Проект не найден")
+
+    _ensure_project_access(project, current_user)
     return project
 
 
 @router.post("/", response_model=schemas.ProjectResponse)
-def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)):
+def create_project(
+    project: schemas.ProjectCreate,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project.user_id = current_user.id
     return crud.create_project(db, project)
 
 
@@ -58,8 +78,15 @@ def create_project(project: schemas.ProjectCreate, db: Session = Depends(get_db)
 def update_project(
     project_id: int,
     project: schemas.ProjectUpdate,
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    existing_project = crud.get_project_by_id(db, project_id)
+
+    if not existing_project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    _ensure_project_access(existing_project, current_user)
     updated_project = crud.update_project(db, project_id, project)
 
     if not updated_project:
@@ -69,7 +96,17 @@ def update_project(
 
 
 @router.delete("/{project_id}")
-def delete_project(project_id: int, db: Session = Depends(get_db)):
+def delete_project(
+    project_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    existing_project = crud.get_project_by_id(db, project_id)
+
+    if not existing_project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    _ensure_project_access(existing_project, current_user)
     project = crud.delete_project(db, project_id)
 
     if not project:
@@ -82,12 +119,15 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 async def upload_project_file(
     project_id: int,
     file: UploadFile = File(...),
+    current_user=Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     project = crud.get_project_by_id(db, project_id)
 
     if not project:
         raise HTTPException(status_code=404, detail="Проект не найден")
+
+    _ensure_project_access(project, current_user)
 
     if file.content_type not in SUPPORTED_PROJECT_FILE_TYPES:
         raise HTTPException(status_code=400, detail="Неподдерживаемый тип файла")
@@ -112,7 +152,17 @@ async def upload_project_file(
 
 
 @router.get("/{project_id}/file", response_model=schemas.ProjectFileResponse)
-def get_project_file(project_id: int, db: Session = Depends(get_db)):
+def get_project_file(
+    project_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = crud.get_project_by_id(db, project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    _ensure_project_access(project, current_user)
     project_file = crud.get_project_file(db, project_id)
 
     if not project_file:
@@ -122,7 +172,17 @@ def get_project_file(project_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{project_id}/file/download")
-def download_project_file(project_id: int, db: Session = Depends(get_db)):
+def download_project_file(
+    project_id: int,
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = crud.get_project_by_id(db, project_id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    _ensure_project_access(project, current_user)
     project_file = crud.get_project_file(db, project_id)
 
     if not project_file:

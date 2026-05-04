@@ -86,11 +86,19 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str] = None
 
 
+class AdminUserUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None
+
+
 class UserResponse(BaseModel):
     id: int
     name: str
     email: str
     role: str
+    status: str
     created_at: str
 
     class Config:

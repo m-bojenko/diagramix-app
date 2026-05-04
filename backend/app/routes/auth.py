@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app import crud, schemas
+from app.auth_utils import get_current_user
 from app.database import get_db
 
 router = APIRouter()
@@ -31,8 +32,14 @@ def login(user_data: schemas.UserLoginRequest, db: Session = Depends(get_db)):
 def update_user(
     user_id: int,
     user_data: schemas.UserUpdateRequest,
+    current_user_id: int = Query(..., description="ID текущего пользователя"),
     db: Session = Depends(get_db)
 ):
+    current_user = get_current_user(user_id=current_user_id, db=db)
+
+    if current_user.id != user_id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Можно редактировать только свой профиль")
+
     user = crud.get_user_by_id(db, user_id)
 
     if not user:

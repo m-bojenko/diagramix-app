@@ -134,12 +134,17 @@ def get_user_by_id(db: Session, user_id: int):
     return db.query(models.User).filter(models.User.id == user_id).first()
 
 
+def get_users(db: Session):
+    return db.query(models.User).all()
+
+
 def create_user(db: Session, user_data: schemas.UserRegisterRequest):
     db_user = models.User(
         name=user_data.name,
         email=user_data.email,
         password_hash=hash_password(user_data.password),
         role="user",
+        status="active",
         created_at=datetime.now(timezone.utc).date().isoformat()
     )
     db.add(db_user)
@@ -174,4 +179,38 @@ def update_user(db: Session, user_id: int, user_data: schemas.UserUpdateRequest)
 
     db.commit()
     db.refresh(user)
+    return user
+
+
+def update_user_by_admin(db: Session, user_id: int, user_data: schemas.AdminUserUpdateRequest):
+    user = get_user_by_id(db, user_id)
+
+    if not user:
+        return None
+
+    if user_data.name is not None:
+        user.name = user_data.name
+
+    if user_data.email is not None:
+        user.email = user_data.email
+
+    if user_data.role is not None:
+        user.role = user_data.role
+
+    if user_data.status is not None:
+        user.status = user_data.status
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def delete_user(db: Session, user_id: int):
+    user = get_user_by_id(db, user_id)
+
+    if not user:
+        return None
+
+    db.delete(user)
+    db.commit()
     return user

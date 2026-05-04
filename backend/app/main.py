@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 from app.database import Base, engine
-from app.routes import auth, projects, generate, preview, export
+from app.routes import admin, auth, projects, generate, preview, export
 
 Base.metadata.create_all(bind=engine)
 
@@ -28,7 +28,23 @@ def ensure_project_user_id_column():
             )
 
 
+def ensure_user_status_column():
+    inspector = inspect(engine)
+
+    if not inspector.has_table("users"):
+        return
+
+    columns = {column["name"] for column in inspector.get_columns("users")}
+
+    if "status" not in columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE users ADD COLUMN status VARCHAR NOT NULL DEFAULT 'active'")
+            )
+
+
 ensure_project_user_id_column()
+ensure_user_status_column()
 
 app = FastAPI(
     title="Diagramix API",
@@ -54,6 +70,7 @@ app.add_middleware(
 app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(generate.router, prefix="/generate", tags=["Generate"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
+app.include_router(admin.router, prefix="/admin", tags=["Admin"])
 app.include_router(preview.router, prefix="/preview", tags=["Preview"])
 app.include_router(export.router, prefix="/export", tags=["Export"])
 

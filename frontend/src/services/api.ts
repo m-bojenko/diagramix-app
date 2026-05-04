@@ -80,6 +80,7 @@ export type User = {
   name: string
   email: string
   role: string
+  status: string
   created_at: string
 }
 
@@ -101,6 +102,35 @@ export type UpdateUserRequest = {
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
+
+function getCurrentUserId() {
+  const savedUser = localStorage.getItem('diagramix_user')
+
+  if (!savedUser) {
+    throw new Error('Пользователь не авторизован')
+  }
+
+  try {
+    const user = JSON.parse(savedUser) as { id?: number }
+
+    if (typeof user.id === 'number') {
+      return user.id
+    }
+  } catch (error) {
+    console.error('Не удалось прочитать пользователя из localStorage', error)
+  }
+
+  throw new Error('Пользователь не авторизован')
+}
+
+function withQueryParam(url: string, key: string, value: number) {
+  const separator = url.includes('?') ? '&' : '?'
+  return `${url}${separator}${key}=${value}`
+}
+
+function withCurrentUserId(url: string) {
+  return withQueryParam(url, 'user_id', getCurrentUserId())
+}
 
 async function getApiErrorMessage(response: Response, fallbackMessage: string) {
   try {
@@ -235,13 +265,16 @@ export async function loginUser(payload: LoginUserRequest): Promise<User> {
 }
 
 export async function updateUser(userId: number, payload: UpdateUserRequest): Promise<User> {
-  const response = await fetch(`${API_BASE_URL}/auth/users/${userId}`, {
-    method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
+  const response = await fetch(
+    withQueryParam(`${API_BASE_URL}/auth/users/${userId}`, 'current_user_id', getCurrentUserId()),
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
     },
-    body: JSON.stringify(payload),
-  })
+  )
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при сохранении профиля'))
@@ -253,7 +286,7 @@ export async function updateUser(userId: number, payload: UpdateUserRequest): Pr
 export async function createProject(
   payload: CreateProjectRequest
 ): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/projects/`, {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -272,7 +305,7 @@ export async function updateProject(
   projectId: number,
   payload: UpdateProjectRequest
 ): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/${projectId}`), {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -298,7 +331,7 @@ export async function getProjects(userId: number): Promise<Project[]> {
 }
 
 export async function deleteProject(projectId: number): Promise<{ message: string }> {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/${projectId}`), {
     method: 'DELETE',
   })
 
@@ -313,7 +346,7 @@ export async function uploadProjectFile(projectId: number, file: File): Promise<
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/file`, {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/${projectId}/file`), {
     method: 'POST',
     body: formData,
   })
@@ -326,7 +359,7 @@ export async function uploadProjectFile(projectId: number, file: File): Promise<
 }
 
 export async function getProjectFileInfo(projectId: number): Promise<ProjectFileInfo | null> {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/file`)
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/${projectId}/file`))
 
   if (response.status === 404) {
     return null
@@ -340,7 +373,7 @@ export async function getProjectFileInfo(projectId: number): Promise<ProjectFile
 }
 
 export async function downloadProjectFile(projectId: number): Promise<DiagramExportResponse> {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/file/download`)
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/${projectId}/file/download`))
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при скачивании файла проекта'))
@@ -355,7 +388,7 @@ export async function downloadProjectFile(projectId: number): Promise<DiagramExp
 }
 
 export async function getProjectById(projectId: number): Promise<Project> {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`)
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/projects/${projectId}`))
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении проекта'))
