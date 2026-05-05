@@ -64,3 +64,24 @@ def get_projects(current_user=Depends(get_current_user), db: Session = Depends(g
     require_admin(current_user)
     return crud.get_projects(db)
 
+
+@router.get("/projects/{id}", response_model=schemas.ProjectResponse)
+def get_project(id: int, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    project = crud.get_project_by_id(db, id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    return project
+
+
+@router.delete("/projects/{id}")
+def delete_project(id: int, current_user=Depends(get_current_user), db: Session = Depends(get_db)):
+    require_admin(current_user)
+    project = crud.delete_project(db, id)
+
+    if not project:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+
+    return {"message": "Проект удалён"}
