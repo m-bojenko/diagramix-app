@@ -32,8 +32,6 @@ function AdminUserDetailsPage() {
   const { confirmMessage, showMessage } = useAppMessage()
   const userId = Number(id)
   const [user, setUser] = useState<User | null>(null)
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const [role, setRole] = useState('user')
   const [status, setStatus] = useState('active')
   const [projectsCount, setProjectsCount] = useState(0)
@@ -53,8 +51,6 @@ function AdminUserDetailsPage() {
         setIsLoading(true)
         const [loadedUser, projects] = await Promise.all([getAdminUserById(userId), getAdminProjects()])
         setUser(loadedUser)
-        setName(loadedUser.name)
-        setEmail(loadedUser.email)
         setRole(loadedUser.role)
         setStatus(loadedUser.status)
         setProjectsCount(projects.filter((project) => project.user_id === loadedUser.id).length)
@@ -73,21 +69,14 @@ function AdminUserDetailsPage() {
       return
     }
 
-    if (!name.trim() || !email.trim()) {
-      await showMessage({ message: 'Заполните имя и email', title: 'Не все поля заполнены' })
-      return
-    }
-
     try {
       setIsSaving(true)
       const updatedUser = await updateAdminUser(user.id, {
-        email: email.trim(),
-        name: name.trim(),
         role,
-        status,
       })
       setUser(updatedUser)
-      await showMessage({ message: 'Пользователь сохранён', title: 'Сохранено' })
+      setRole(updatedUser.role)
+      await showMessage({ message: 'Роль пользователя сохранена', title: 'Сохранено' })
     } catch (saveError) {
       await showMessage({
         message: saveError instanceof Error ? saveError.message : 'Не удалось сохранить пользователя',
@@ -109,6 +98,17 @@ function AdminUserDetailsPage() {
     }
 
     const nextStatus = status === 'blocked' ? 'active' : 'blocked'
+    const actionLabel = nextStatus === 'blocked' ? 'заблокировать' : 'разблокировать'
+    const confirmed = await confirmMessage({
+      cancelLabel: 'Отмена',
+      confirmLabel: nextStatus === 'blocked' ? 'Заблокировать' : 'Разблокировать',
+      message: `Вы точно хотите ${actionLabel} пользователя ${user.email}?`,
+      title: nextStatus === 'blocked' ? 'Блокировка пользователя' : 'Разблокировка пользователя',
+    })
+
+    if (!confirmed) {
+      return
+    }
 
     try {
       const updatedUser = await updateAdminUser(user.id, { status: nextStatus })
@@ -130,7 +130,7 @@ function AdminUserDetailsPage() {
     const confirmed = await confirmMessage({
       cancelLabel: 'Отмена',
       confirmLabel: 'Удалить',
-      message: `Удалить пользователя ${user.email}?`,
+      message: `Вы точно хотите удалить пользователя ${user.email}?`,
       title: 'Удаление пользователя',
     })
 
@@ -199,43 +199,27 @@ function AdminUserDetailsPage() {
         <form className="admin-card admin-edit-form" onSubmit={handleSubmit}>
           <h2>Редактирование</h2>
           <label>
-            <span>Изменить имя</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} />
+            <span>Изменить роль</span>
+            <select value={role} onChange={(event) => setRole(event.target.value)}>
+              <option value="user">Пользователь</option>
+              <option value="admin">Администратор</option>
+            </select>
           </label>
-          <label>
-            <span>Изменить email</span>
-            <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
-          </label>
-          <div className="admin-form-row">
-            <label>
-              <span>Изменить роль</span>
-              <select value={role} onChange={(event) => setRole(event.target.value)}>
-                <option value="user">Пользователь</option>
-                <option value="admin">Администратор</option>
-              </select>
-            </label>
-            <label>
-              <span>Изменить статус</span>
-              <select value={status} onChange={(event) => setStatus(event.target.value)}>
-                <option value="active">Активен</option>
-                <option value="blocked">Заблокирован</option>
-                <option value="inactive">Неактивен</option>
-              </select>
-            </label>
+          <div className="admin-edit-actions">
+            <button className="admin-button admin-button-primary" type="submit" disabled={isSaving}>
+              {isSaving ? 'Сохранение...' : 'Сохранить роль'}
+            </button>
+            <button className="admin-button" type="button" onClick={handleToggleBlocked}>
+              {status === 'blocked' ? 'Разблокировать' : 'Заблокировать'}
+            </button>
+            <button className="admin-button admin-button-danger" type="button" onClick={handleDelete}>
+              Удалить пользователя
+            </button>
           </div>
         </form>
       </div>
 
       <div className="admin-actions-row">
-        <button className="admin-button admin-button-primary" type="button" onClick={saveUser}>
-          {isSaving ? 'Сохранение...' : 'Сохранить изменения'}
-        </button>
-        <button className="admin-button" type="button" onClick={handleToggleBlocked}>
-          {status === 'blocked' ? 'Разблокировать' : 'Заблокировать'}
-        </button>
-        <button className="admin-button admin-button-danger" type="button" onClick={handleDelete}>
-          Удалить пользователя
-        </button>
         <button className="admin-button" type="button" onClick={() => navigate('/admin/users')}>
           Назад
         </button>

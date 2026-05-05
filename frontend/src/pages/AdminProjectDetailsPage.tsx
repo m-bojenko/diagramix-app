@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import mermaid from 'mermaid'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { useAppMessage } from '../components/AppMessageContext'
 import {
@@ -287,11 +287,27 @@ function AdminProjectDetailsPage() {
           </div>
           <div>
             <dt>Владелец</dt>
-            <dd>{owner?.name ?? `ID ${project.user_id}`}</dd>
+            <dd>
+              {owner ? (
+                <Link className="admin-inline-link" to={`/admin/users/${owner.id}`}>
+                  {owner.name}
+                </Link>
+              ) : (
+                `ID ${project.user_id}`
+              )}
+            </dd>
           </div>
           <div>
             <dt>Email владельца</dt>
-            <dd>{owner?.email ?? 'Неизвестно'}</dd>
+            <dd>
+              {owner ? (
+                <Link className="admin-inline-link" to={`/admin/users/${owner.id}`}>
+                  {owner.email}
+                </Link>
+              ) : (
+                'Неизвестно'
+              )}
+            </dd>
           </div>
           <div>
             <dt>Тип диаграммы</dt>

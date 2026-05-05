@@ -63,7 +63,7 @@ function AdminProjectsPage() {
                   <th>Название проекта</th>
                   <th>Владелец</th>
                   <th>Тип диаграммы</th>
-                  <th>Дата создания</th>
+                  <th className="admin-date-column">Дата создания</th>
                   <th>Дата изменения</th>
                   <th>Действия</th>
                 </tr>
@@ -75,10 +75,22 @@ function AdminProjectsPage() {
                   return (
                     <tr key={project.id}>
                       <td>{project.id}</td>
-                      <td>{project.name}</td>
-                      <td>{owner?.email ?? `ID ${project.user_id}`}</td>
+                      <td>
+                        <Link className="admin-table-action" to={`/admin/projects/${project.id}`}>
+                          {project.name}
+                        </Link>
+                      </td>
+                      <td>
+                        {owner ? (
+                          <Link className="admin-table-action" to={`/admin/users/${owner.id}`}>
+                            {owner.email}
+                          </Link>
+                        ) : (
+                          `ID ${project.user_id}`
+                        )}
+                      </td>
                       <td>{project.diagram_type}</td>
-                      <td>{project.created_at}</td>
+                      <td className="admin-date-column">{project.created_at}</td>
                       <td>{project.updated_at ?? project.created_at}</td>
                       <td>
                         <Link className="admin-table-action" to={`/admin/projects/${project.id}`}>
@@ -100,4 +112,3 @@ function AdminProjectsPage() {
 }
 
 export default AdminProjectsPage
-

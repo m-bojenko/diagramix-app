@@ -89,8 +89,16 @@ function AdminUsersPage() {
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td>{user.id}</td>
-                    <td>{user.name}</td>
-                    <td>{user.email}</td>
+                    <td>
+                      <Link className="admin-table-action" to={`/admin/users/${user.id}`}>
+                        {user.name}
+                      </Link>
+                    </td>
+                    <td>
+                      <Link className="admin-table-action" to={`/admin/users/${user.id}`}>
+                        {user.email}
+                      </Link>
+                    </td>
                     <td>{formatRole(user.role)}</td>
                     <td>{formatStatus(user.status)}</td>
                     <td>{user.created_at}</td>
@@ -114,4 +122,3 @@ function AdminUsersPage() {
 }
 
 export default AdminUsersPage
-
