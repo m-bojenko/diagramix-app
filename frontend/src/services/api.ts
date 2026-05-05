@@ -45,6 +45,7 @@ export type Project = {
   diagram_language: string
   generated_code?: string | null
   created_at: string
+  updated_at?: string | null
   user_id: number
 }
 
@@ -99,6 +100,13 @@ export type UpdateUserRequest = {
   name: string
   email: string
   password?: string
+}
+
+export type AdminUserUpdateRequest = {
+  name?: string
+  email?: string
+  role?: string
+  status?: string
 }
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
@@ -392,6 +400,86 @@ export async function getProjectById(projectId: number): Promise<Project> {
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении проекта'))
+  }
+
+  return response.json()
+}
+
+export async function getAdminUsers(): Promise<User[]> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users`))
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении пользователей'))
+  }
+
+  return response.json()
+}
+
+export async function getAdminUserById(userId: number): Promise<User> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`))
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении пользователя'))
+  }
+
+  return response.json()
+}
+
+export async function updateAdminUser(userId: number, payload: AdminUserUpdateRequest): Promise<User> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`), {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при сохранении пользователя'))
+  }
+
+  return response.json()
+}
+
+export async function deleteAdminUser(userId: number): Promise<{ message: string }> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`), {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при удалении пользователя'))
+  }
+
+  return response.json()
+}
+
+export async function getAdminProjects(): Promise<Project[]> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/projects`))
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении проектов'))
+  }
+
+  return response.json()
+}
+
+export async function getAdminProjectById(projectId: number): Promise<Project> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}`))
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении проекта'))
+  }
+
+  return response.json()
+}
+
+export async function deleteAdminProject(projectId: number): Promise<{ message: string }> {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}`), {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при удалении проекта'))
   }
 
   return response.json()
