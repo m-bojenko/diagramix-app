@@ -14,6 +14,7 @@ import {
   type DiagramExportFormat,
   type ProjectFileInfo,
 } from '../services/api'
+import { downloadBlob, getDownloadFilename, svgToPngBlob } from '../utils/download'
 
 type DiagramixResult = {
   project_id?: number
@@ -170,18 +171,6 @@ async function renderMermaidSvg(code: string) {
   assertSvgDocument(svg)
 
   return svg
-}
-
-function downloadBlob(blob: Blob, filename: string) {
-  const downloadUrl = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-
-  link.href = downloadUrl
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(downloadUrl)
 }
 
 function DiagramPreview({
@@ -348,6 +337,7 @@ function ResultPage() {
       { label: 'Текст (.txt)', value: 'txt' },
       sourceOption,
       { label: 'SVG (.svg)', value: 'svg' },
+      { label: 'PNG (.png)', value: 'png' },
     ]
   }, [diagramLanguage])
   const selectedExportFormat = exportOptions.some((option) => option.value === exportFormat)
@@ -583,6 +573,20 @@ function ResultPage() {
 
     try {
       let svg = renderedSvg ?? undefined
+
+      if (selectedExportFormat === 'png') {
+        if (!svg) {
+          showMessage({
+            message: 'SVG-превью ещё недоступно. Дождитесь построения диаграммы и повторите экспорт.',
+            title: 'PNG недоступен',
+          })
+          return
+        }
+
+        const pngBlob = await svgToPngBlob(svg)
+        downloadBlob(pngBlob, getDownloadFilename(projectName.trim() || result.project_name, 'png'))
+        return
+      }
 
       if (selectedExportFormat === 'svg' && diagramLanguage === 'Mermaid' && !svg) {
         svg = await renderMermaidSvg(generatedCode.trim())

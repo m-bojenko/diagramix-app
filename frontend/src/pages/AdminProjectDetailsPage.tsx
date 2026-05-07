@@ -20,6 +20,7 @@ import {
   type ProjectFileInfo,
   type User,
 } from '../services/api'
+import { downloadBlob, getDownloadFilename, svgToPngBlob } from '../utils/download'
 
 let adminMermaidInitialized = false
 let adminPreviewCounter = 0
@@ -38,18 +39,6 @@ function initializeMermaid() {
   adminMermaidInitialized = true
 }
 
-function downloadBlob(blob: Blob, filename: string) {
-  const downloadUrl = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-
-  link.href = downloadUrl
-  link.download = filename
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(downloadUrl)
-}
-
 function formatFileSize(size: number) {
   if (size < 1024) {
     return `${size} Б`
@@ -62,7 +51,13 @@ function formatFileSize(size: number) {
   return `${(size / (1024 * 1024)).toFixed(1)} МБ`
 }
 
-function AdminDiagramPreview({ project }: { project: Project }) {
+function AdminDiagramPreview({
+  onSvgChange,
+  project,
+}: {
+  onSvgChange: (svg: string | null) => void
+  project: Project
+}) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [message, setMessage] = useState('Строим предпросмотр диаграммы...')
   const previewUrlRef = useRef<string | null>(null)
@@ -74,13 +69,15 @@ function AdminDiagramPreview({ project }: { project: Project }) {
 
     const nextUrl = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
     previewUrlRef.current = nextUrl
+    onSvgChange(svg)
     setPreviewUrl(nextUrl)
-  }, [])
+  }, [onSvgChange])
 
   useEffect(() => {
     let isStale = false
 
     const renderPreview = async () => {
+      onSvgChange(null)
       const code = project.generated_code?.trim()
 
       if (!code) {
@@ -109,6 +106,7 @@ function AdminDiagramPreview({ project }: { project: Project }) {
       } catch (error) {
         console.error('Не удалось построить предпросмотр', error)
         if (!isStale) {
+          onSvgChange(null)
           setMessage('Предпросмотр недоступен')
         }
       }
@@ -119,7 +117,7 @@ function AdminDiagramPreview({ project }: { project: Project }) {
     return () => {
       isStale = true
     }
-  }, [project, setSvgPreview])
+  }, [onSvgChange, project, setSvgPreview])
 
   useEffect(() => {
     return () => {
@@ -149,6 +147,7 @@ function AdminProjectDetailsPage() {
   const [owner, setOwner] = useState<User | null>(null)
   const [projectFile, setProjectFile] = useState<ProjectFileInfo | null>(null)
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
+  const [renderedSvg, setRenderedSvg] = useState<string | null>(null)
   const [exportFormat, setExportFormat] = useState<DiagramExportFormat>('txt')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -164,6 +163,7 @@ function AdminProjectDetailsPage() {
       { label: 'Текст (.txt)', value: 'txt' as DiagramExportFormat },
       sourceOption,
       { label: 'SVG (.svg)', value: 'svg' as DiagramExportFormat },
+      { label: 'PNG (.png)', value: 'png' as DiagramExportFormat },
     ]
   }, [project?.diagram_language])
 
@@ -234,6 +234,20 @@ function AdminProjectDetailsPage() {
 
     try {
       let svg: string | undefined
+
+      if (exportFormat === 'png') {
+        if (!renderedSvg) {
+          await showMessage({
+            message: 'SVG-превью ещё недоступно. Дождитесь построения диаграммы и повторите экспорт.',
+            title: 'PNG недоступен',
+          })
+          return
+        }
+
+        const pngBlob = await svgToPngBlob(renderedSvg)
+        downloadBlob(pngBlob, getDownloadFilename(project.name, 'png'))
+        return
+      }
 
       if (exportFormat === 'svg' && project.diagram_language === 'Mermaid') {
         initializeMermaid()
@@ -376,7 +390,7 @@ function AdminProjectDetailsPage() {
         <h3>Краткое описание</h3>
         <div className="admin-readonly-box">{project.description}</div>
         <h3>Область предпросмотра диаграммы</h3>
-        <AdminDiagramPreview project={project} />
+        <AdminDiagramPreview project={project} onSvgChange={setRenderedSvg} />
         <h3>Загруженный файл</h3>
         <div className="admin-file-row">
           <span>{projectFile ? projectFile.filename : 'Файл не загружен'}</span>

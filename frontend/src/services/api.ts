@@ -22,13 +22,14 @@ export type DiagramPreviewResponse = {
   svg: string
 }
 
-export type DiagramExportFormat = 'txt' | 'mmd' | 'puml' | 'svg'
+export type DiagramExportFormat = 'txt' | 'mmd' | 'puml' | 'svg' | 'png'
+type BackendDiagramExportFormat = Exclude<DiagramExportFormat, 'png'>
 
 export type DiagramExportRequest = {
   project_name: string
   diagram_language: string
   code: string
-  format: DiagramExportFormat
+  format: BackendDiagramExportFormat
   svg?: string
 }
 
