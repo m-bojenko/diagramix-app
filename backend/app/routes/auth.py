@@ -15,7 +15,16 @@ def register(user_data: schemas.UserRegisterRequest, db: Session = Depends(get_d
     if existing_user:
         raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
 
-    return crud.create_user(db, user_data)
+    user = crud.create_user(db, user_data)
+    crud.create_audit_log(
+        db=db,
+        user_id=user.id,
+        action="register",
+        entity_type="auth",
+        entity_id=user.id,
+        details={"email": user.email},
+    )
+    return user
 
 
 @router.post("/login", response_model=schemas.UserResponse)
@@ -25,6 +34,14 @@ def login(user_data: schemas.UserLoginRequest, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=401, detail="Неверный email или пароль")
 
+    crud.create_audit_log(
+        db=db,
+        user_id=user.id,
+        action="login_success",
+        entity_type="auth",
+        entity_id=user.id,
+        details={"email": user.email},
+    )
     return user
 
 

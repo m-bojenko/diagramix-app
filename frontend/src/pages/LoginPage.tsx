@@ -28,7 +28,7 @@ function LoginPage() {
       })
 
       localStorage.setItem('diagramix_user', JSON.stringify(user))
-      navigate('/')
+      navigate(user.role === 'admin' ? '/admin/users' : '/')
     } catch (error) {
       console.error('Ошибка входа', error)
       showMessage({

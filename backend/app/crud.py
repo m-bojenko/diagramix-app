@@ -1,10 +1,27 @@
+import json
 from datetime import datetime, timezone
+from typing import Optional
 
 from passlib.context import CryptContext
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from app import models, schemas
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+
+def _utc_now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _json_details(details):
+    if details is None:
+        return None
+
+    if isinstance(details, str):
+        return details
+
+    return json.dumps(details, ensure_ascii=False)
 
 
 def hash_password(password: str):
@@ -13,6 +30,76 @@ def hash_password(password: str):
 
 def verify_password(password: str, password_hash: str):
     return pwd_context.verify(password, password_hash)
+
+
+def create_audit_log(
+    db: Session,
+    user_id: Optional[int],
+    action: str,
+    entity_type: str,
+    entity_id: Optional[int] = None,
+    details=None,
+):
+    audit_log = models.AuditLog(
+        user_id=user_id,
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        details=_json_details(details),
+        created_at=_utc_now_iso(),
+    )
+    db.add(audit_log)
+    db.commit()
+    db.refresh(audit_log)
+    return audit_log
+
+
+def get_audit_logs(
+    db: Session,
+    user_id: Optional[int] = None,
+    entity_type: Optional[str] = None,
+    action: Optional[str] = None,
+    entity_id: Optional[int] = None,
+    limit: int = 50,
+):
+    query = db.query(models.AuditLog)
+
+    if user_id is not None:
+        query = query.filter(models.AuditLog.user_id == user_id)
+
+    if entity_type is not None:
+        query = query.filter(models.AuditLog.entity_type == entity_type)
+
+    if action is not None:
+        query = query.filter(models.AuditLog.action == action)
+
+    if entity_id is not None:
+        query = query.filter(models.AuditLog.entity_id == entity_id)
+
+    return (
+        query
+        .order_by(models.AuditLog.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def get_user_audit_logs(db: Session, user_id: int, limit: int = 100):
+    return (
+        db.query(models.AuditLog)
+        .filter(
+            or_(
+                models.AuditLog.user_id == user_id,
+                (
+                    (models.AuditLog.entity_type == "user") &
+                    (models.AuditLog.entity_id == user_id)
+                ),
+            )
+        )
+        .order_by(models.AuditLog.id.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def create_project(db: Session, project: schemas.ProjectCreate):

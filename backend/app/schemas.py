@@ -103,3 +103,16 @@ class UserResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class AuditLogResponse(BaseModel):
+    id: int
+    user_id: Optional[int] = None
+    action: str
+    entity_type: str
+    entity_id: Optional[int] = None
+    details: Optional[str] = None
+    created_at: str
+
+    class Config:
+        from_attributes = True

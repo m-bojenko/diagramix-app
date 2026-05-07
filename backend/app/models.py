@@ -45,3 +45,15 @@ class User(Base):
     role = Column(String, nullable=False, default="user")
     status = Column(String, nullable=False, default="active")
     created_at = Column(String, nullable=False)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, nullable=True, index=True)
+    action = Column(String, nullable=False, index=True)
+    entity_type = Column(String, nullable=False, index=True)
+    entity_id = Column(Integer, nullable=True, index=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(String, nullable=False, index=True)

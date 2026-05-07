@@ -21,8 +21,10 @@ function readCurrentUser() {
 }
 
 export function PublicRoute() {
-  if (hasCurrentUser()) {
-    return <Navigate to="/" replace />
+  const currentUser = readCurrentUser()
+
+  if (currentUser) {
+    return <Navigate to={currentUser.role === 'admin' ? '/admin/users' : '/'} replace />
   }
 
   return <Outlet />

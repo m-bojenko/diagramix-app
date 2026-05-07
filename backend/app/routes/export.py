@@ -1,9 +1,12 @@
 import re
+from typing import Optional
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from sqlalchemy.orm import Session
 
-from app import schemas
+from app import crud, schemas
+from app.database import get_db
 from app.routes.preview import _is_svg_document, _render_local_plantuml_preview
 
 router = APIRouter()
@@ -37,8 +40,40 @@ def _normalize_language(value: str) -> str:
     return value.strip().lower()
 
 
+def _log_export_if_possible(
+    db: Session,
+    user_id: Optional[int],
+    data: schemas.DiagramExportRequest,
+    export_format: str,
+):
+    if user_id is None:
+        return
+
+    user = crud.get_user_by_id(db, user_id)
+
+    if not user:
+        return
+
+    crud.create_audit_log(
+        db=db,
+        user_id=user.id,
+        action="diagram_export",
+        entity_type="export",
+        entity_id=None,
+        details={
+            "project_name": data.project_name,
+            "diagram_language": data.diagram_language,
+            "format": export_format,
+        },
+    )
+
+
 @router.post("/diagram")
-def export_diagram(data: schemas.DiagramExportRequest):
+def export_diagram(
+    data: schemas.DiagramExportRequest,
+    user_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+):
     export_format = data.format.strip().lower()
     language = _normalize_language(data.diagram_language)
     code = data.code.strip()
@@ -57,6 +92,7 @@ def export_diagram(data: schemas.DiagramExportRequest):
         raise HTTPException(status_code=400, detail="Формат .puml доступен только для PlantUML")
 
     if export_format == "txt":
+        _log_export_if_possible(db, user_id, data, export_format)
         return _download_response(
             content=code,
             filename=f"{filename_base}.txt",
@@ -64,6 +100,7 @@ def export_diagram(data: schemas.DiagramExportRequest):
         )
 
     if export_format == "mmd":
+        _log_export_if_possible(db, user_id, data, export_format)
         return _download_response(
             content=code,
             filename=f"{filename_base}.mmd",
@@ -71,6 +108,7 @@ def export_diagram(data: schemas.DiagramExportRequest):
         )
 
     if export_format == "puml":
+        _log_export_if_possible(db, user_id, data, export_format)
         return _download_response(
             content=code,
             filename=f"{filename_base}.puml",
@@ -88,6 +126,7 @@ def export_diagram(data: schemas.DiagramExportRequest):
     if not _is_svg_document(svg):
         raise HTTPException(status_code=422, detail="Невозможно экспортировать некорректный SVG")
 
+    _log_export_if_possible(db, user_id, data, export_format)
     return _download_response(
         content=svg,
         filename=f"{filename_base}.svg",

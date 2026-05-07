@@ -34,7 +34,7 @@ function App() {
 
       <Route element={<AdminRoute />}>
         <Route element={<AdminLayout />}>
-          <Route path="/admin" element={<Navigate to="/admin/projects" replace />} />
+          <Route path="/admin" element={<Navigate to="/admin/users" replace />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/users/:id" element={<AdminUserDetailsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
