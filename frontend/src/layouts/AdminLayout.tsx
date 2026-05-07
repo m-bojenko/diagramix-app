@@ -12,6 +12,7 @@ function AdminLayout() {
         <nav className="admin-nav" aria-label="Администрирование">
           <NavLink to="/admin/projects">Все проекты</NavLink>
           <NavLink to="/admin/users">Пользователи</NavLink>
+          <NavLink to="/admin/audit">Аудит</NavLink>
         </nav>
 
         <Link className="admin-profile-link" to="/admin/profile" aria-label="Профиль администратора">

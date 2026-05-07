@@ -1,3 +1,5 @@
+from typing import Optional
+
 from fastapi import Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
@@ -6,10 +8,16 @@ from app.database import get_db
 
 
 def get_current_user(
-    user_id: int = Query(..., description="ID текущего пользователя"),
+    user_id: Optional[int] = Query(None, description="ID текущего пользователя"),
+    current_user_id: Optional[int] = Query(None, description="ID текущего пользователя"),
     db: Session = Depends(get_db),
 ) -> models.User:
-    user = crud.get_user_by_id(db, user_id)
+    resolved_user_id = current_user_id if current_user_id is not None else user_id
+
+    if resolved_user_id is None:
+        raise HTTPException(status_code=422, detail="ID текущего пользователя обязателен")
+
+    user = crud.get_user_by_id(db, resolved_user_id)
 
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")

@@ -109,6 +109,23 @@ export type AdminUserUpdateRequest = {
   status?: string
 }
 
+export type AuditLog = {
+  id: number
+  user_id?: number | null
+  action?: string | null
+  entity_type?: string | null
+  entity_id?: number | null
+  details?: string | null
+  created_at?: string | null
+}
+
+export type AuditLogFilters = {
+  action?: string
+  entityType?: string
+  userId?: number
+  limit?: number
+}
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000'
 
 function getCurrentUserId() {
@@ -131,13 +148,27 @@ function getCurrentUserId() {
   throw new Error('Пользователь не авторизован')
 }
 
-function withQueryParam(url: string, key: string, value: number) {
+function withQueryParam(url: string, key: string, value: number | string) {
   const separator = url.includes('?') ? '&' : '?'
-  return `${url}${separator}${key}=${value}`
+  return `${url}${separator}${key}=${encodeURIComponent(String(value))}`
 }
 
 function withCurrentUserId(url: string) {
   return withQueryParam(url, 'user_id', getCurrentUserId())
+}
+
+function withAdminCurrentUserId(url: string) {
+  return withQueryParam(url, 'current_user_id', getCurrentUserId())
+}
+
+function withOptionalQueryParams(url: string, params: Record<string, string | number | undefined>) {
+  return Object.entries(params).reduce((nextUrl, [key, value]) => {
+    if (value === undefined || value === '') {
+      return nextUrl
+    }
+
+    return withQueryParam(nextUrl, key, value)
+  }, url)
 }
 
 async function getApiErrorMessage(response: Response, fallbackMessage: string) {
@@ -181,6 +212,15 @@ function getFilenameFromContentDisposition(value: string | null) {
   return filenameMatch?.[1] ?? null
 }
 
+function normalizeAuditLog(log: AuditLog): AuditLog {
+  return {
+    ...log,
+    action: log.action ?? '',
+    entity_type: log.entity_type ?? '',
+    created_at: log.created_at ?? '',
+  }
+}
+
 export async function generateDiagram(
   payload: GenerateRequest
 ): Promise<GenerateResponse> {
@@ -220,7 +260,7 @@ export async function renderPlantUmlPreview(
 }
 
 export async function exportDiagram(payload: DiagramExportRequest): Promise<DiagramExportResponse> {
-  const response = await fetch(`${API_BASE_URL}/export/diagram`, {
+  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/export/diagram`), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -406,7 +446,7 @@ export async function getProjectById(projectId: number): Promise<Project> {
 }
 
 export async function getAdminUsers(): Promise<User[]> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users`))
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/users`))
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении пользователей'))
@@ -416,7 +456,7 @@ export async function getAdminUsers(): Promise<User[]> {
 }
 
 export async function getAdminUserById(userId: number): Promise<User> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`))
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`))
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении пользователя'))
@@ -426,7 +466,7 @@ export async function getAdminUserById(userId: number): Promise<User> {
 }
 
 export async function updateAdminUser(userId: number, payload: AdminUserUpdateRequest): Promise<User> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`), {
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`), {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -442,7 +482,7 @@ export async function updateAdminUser(userId: number, payload: AdminUserUpdateRe
 }
 
 export async function deleteAdminUser(userId: number): Promise<{ message: string }> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`), {
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/users/${userId}`), {
     method: 'DELETE',
   })
 
@@ -454,7 +494,7 @@ export async function deleteAdminUser(userId: number): Promise<{ message: string
 }
 
 export async function getAdminProjects(): Promise<Project[]> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/projects`))
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/projects`))
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении проектов'))
@@ -464,7 +504,7 @@ export async function getAdminProjects(): Promise<Project[]> {
 }
 
 export async function getAdminProjectById(projectId: number): Promise<Project> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}`))
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}`))
 
   if (!response.ok) {
     throw new Error(await getApiErrorMessage(response, 'Ошибка при получении проекта'))
@@ -474,7 +514,7 @@ export async function getAdminProjectById(projectId: number): Promise<Project> {
 }
 
 export async function deleteAdminProject(projectId: number): Promise<{ message: string }> {
-  const response = await fetch(withCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}`), {
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}`), {
     method: 'DELETE',
   })
 
@@ -483,4 +523,47 @@ export async function deleteAdminProject(projectId: number): Promise<{ message: 
   }
 
   return response.json()
+}
+
+export async function getAuditLogs(filters: AuditLogFilters = {}): Promise<AuditLog[]> {
+  const response = await fetch(
+    withOptionalQueryParams(withAdminCurrentUserId(`${API_BASE_URL}/admin/audit`), {
+      action: filters.action?.trim(),
+      entity_type: filters.entityType,
+      user_id: filters.userId,
+      limit: filters.limit,
+    }),
+  )
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении аудита'))
+  }
+
+  const logs = (await response.json()) as AuditLog[]
+
+  return logs.map(normalizeAuditLog)
+}
+
+export async function getUserAudit(userId: number): Promise<AuditLog[]> {
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/users/${userId}/audit`))
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении аудита пользователя'))
+  }
+
+  const logs = (await response.json()) as AuditLog[]
+
+  return logs.map(normalizeAuditLog)
+}
+
+export async function getProjectAudit(projectId: number): Promise<AuditLog[]> {
+  const response = await fetch(withAdminCurrentUserId(`${API_BASE_URL}/admin/projects/${projectId}/audit`))
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при получении аудита проекта'))
+  }
+
+  const logs = (await response.json()) as AuditLog[]
+
+  return logs.map(normalizeAuditLog)
 }

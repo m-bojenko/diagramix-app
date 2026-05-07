@@ -1,12 +1,15 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 
+import AdminAuditTable from '../components/AdminAuditTable'
 import { useAppMessage } from '../components/AppMessageContext'
 import {
   deleteAdminUser,
   getAdminProjects,
   getAdminUserById,
+  getUserAudit,
   updateAdminUser,
+  type AuditLog,
   type User,
 } from '../services/api'
 
@@ -35,9 +38,11 @@ function AdminUserDetailsPage() {
   const [role, setRole] = useState('user')
   const [status, setStatus] = useState('active')
   const [projectsCount, setProjectsCount] = useState(0)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
+  const [auditError, setAuditError] = useState('')
 
   useEffect(() => {
     const loadUser = async () => {
@@ -54,6 +59,13 @@ function AdminUserDetailsPage() {
         setRole(loadedUser.role)
         setStatus(loadedUser.status)
         setProjectsCount(projects.filter((project) => project.user_id === loadedUser.id).length)
+        try {
+          const loadedAudit = await getUserAudit(userId)
+          setAuditLogs(loadedAudit.slice(0, 10))
+          setAuditError('')
+        } catch (auditLoadError) {
+          setAuditError(auditLoadError instanceof Error ? auditLoadError.message : 'Не удалось загрузить аудит')
+        }
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить пользователя')
       } finally {
@@ -218,6 +230,17 @@ function AdminUserDetailsPage() {
           </div>
         </form>
       </div>
+
+      <section className="admin-card admin-audit-card">
+        <div className="admin-section-heading">
+          <h2>Последние действия пользователя</h2>
+          <button className="admin-link-button" type="button" onClick={() => navigate(`/admin/audit?userId=${user.id}`)}>
+            Открыть весь аудит
+          </button>
+        </div>
+        {auditError ? <div className="admin-state admin-state-error">{auditError}</div> : null}
+        <AdminAuditTable compact logs={auditLogs} />
+      </section>
 
       <div className="admin-actions-row">
         <button className="admin-button" type="button" onClick={() => navigate('/admin/users')}>

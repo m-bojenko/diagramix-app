@@ -272,6 +272,53 @@ h1 {
   background: #f1ecff;
 }
 
+.admin-audit-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(140px, 0.8fr) minmax(140px, 0.8fr) minmax(110px, 0.6fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  color: #6b5ca0;
+  border: 1px solid #d8c9ff;
+  border-radius: 8px;
+  background: #f1ecff;
+}
+
+.admin-audit-toolbar label {
+  display: grid;
+  gap: 7px;
+  font-weight: 600;
+}
+
+.admin-audit-toolbar input,
+.admin-audit-toolbar select {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 14px;
+  color: #51466f;
+  border: 1px solid #d6c8f4;
+  border-radius: 8px;
+  background: #ffffff;
+  outline: none;
+}
+
+.admin-audit-toolbar select {
+  padding-right: 38px;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg width='14' height='8' viewBox='0 0 14 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1l6 6 6-6' fill='none' stroke='%238968d9' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 14px 8px;
+}
+
+.admin-audit-toolbar input:focus,
+.admin-audit-toolbar select:focus {
+  border-color: #8968d9;
+  box-shadow: 0 0 0 4px rgba(137, 104, 217, 0.14);
+}
+
 .admin-link-button,
 .admin-table-action,
 .admin-inline-link {
@@ -321,6 +368,54 @@ h1 {
   white-space: nowrap;
 }
 
+.admin-audit-table {
+  min-width: 980px;
+}
+
+.admin-audit-table-compact {
+  min-width: 640px;
+}
+
+.admin-audit-table td {
+  color: #51466f;
+}
+
+.admin-action-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  color: #523495;
+  border: 1px solid #c9b8f2;
+  border-radius: 999px;
+  background: #f4efff;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-audit-details {
+  max-width: 520px;
+  max-height: 130px;
+  margin: 0;
+  overflow: auto;
+  color: #655b84;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.admin-audit-empty {
+  padding: 22px;
+  color: #877ba2;
+  border: 1px dashed #cfc1f1;
+  border-radius: 8px;
+  background: #fbf9ff;
+  text-align: center;
+  font-weight: 600;
+}
+
 .admin-table th:last-child,
 .admin-table td:last-child {
   border-right: 0;
@@ -366,6 +461,22 @@ h1 {
 
 .admin-card {
   padding: 22px;
+}
+
+.admin-audit-card {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.admin-section-heading h2 {
+  margin: 0;
 }
 
 .admin-info-list,
@@ -1456,11 +1567,17 @@ h1 {
   }
 
   .admin-list-toolbar,
+  .admin-audit-toolbar,
   .admin-export-row,
   .admin-file-row {
     align-items: stretch;
     flex-direction: column;
     display: flex;
+  }
+
+  .admin-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .admin-export-row label {

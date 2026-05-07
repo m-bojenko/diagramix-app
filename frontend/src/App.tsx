@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import ProtectedRoute, { AdminRoute, PublicRoute } from './components/ProtectedRoute'
 import AdminLayout from './layouts/AdminLayout'
 import MainLayout from './layouts/MainLayout'
+import AdminAuditPage from './pages/AdminAuditPage'
 import AdminProfilePage from './pages/AdminProfilePage'
 import AdminProjectDetailsPage from './pages/AdminProjectDetailsPage'
 import AdminProjectsPage from './pages/AdminProjectsPage'
@@ -39,6 +40,7 @@ function App() {
           <Route path="/admin/users/:id" element={<AdminUserDetailsPage />} />
           <Route path="/admin/projects" element={<AdminProjectsPage />} />
           <Route path="/admin/projects/:id" element={<AdminProjectDetailsPage />} />
+          <Route path="/admin/audit" element={<AdminAuditPage />} />
           <Route path="/admin/profile" element={<AdminProfilePage />} />
         </Route>
       </Route>

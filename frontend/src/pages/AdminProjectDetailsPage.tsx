@@ -2,15 +2,19 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import mermaid from 'mermaid'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
+import AdminAuditTable from '../components/AdminAuditTable'
 import { useAppMessage } from '../components/AppMessageContext'
 import {
   deleteAdminProject,
   downloadProjectFile,
   exportDiagram,
+  getAuditLogs,
   getAdminProjectById,
   getAdminUsers,
+  getProjectAudit,
   getProjectFileInfo,
   renderPlantUmlPreview,
+  type AuditLog,
   type DiagramExportFormat,
   type Project,
   type ProjectFileInfo,
@@ -144,9 +148,11 @@ function AdminProjectDetailsPage() {
   const [project, setProject] = useState<Project | null>(null)
   const [owner, setOwner] = useState<User | null>(null)
   const [projectFile, setProjectFile] = useState<ProjectFileInfo | null>(null)
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([])
   const [exportFormat, setExportFormat] = useState<DiagramExportFormat>('txt')
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [auditError, setAuditError] = useState('')
 
   const exportOptions = useMemo(() => {
     const sourceOption =
@@ -175,6 +181,25 @@ function AdminProjectDetailsPage() {
         setProject(loadedProject)
         setOwner(users.find((user) => user.id === loadedProject.user_id) ?? null)
         setProjectFile(await getProjectFileInfo(loadedProject.id))
+        try {
+          const [projectAudit, exportAudit] = await Promise.all([
+            getProjectAudit(loadedProject.id),
+            getAuditLogs({ entityType: 'export', limit: 100 }),
+          ])
+          const projectExportAudit = exportAudit.filter((log) => {
+            try {
+              const details = log.details ? (JSON.parse(log.details) as { project_name?: string }) : null
+
+              return details?.project_name === loadedProject.name
+            } catch {
+              return false
+            }
+          })
+          setAuditLogs([...projectAudit, ...projectExportAudit].sort((a, b) => b.id - a.id).slice(0, 10))
+          setAuditError('')
+        } catch (auditLoadError) {
+          setAuditError(auditLoadError instanceof Error ? auditLoadError.message : 'Не удалось загрузить аудит')
+        }
       } catch (loadError) {
         setError(loadError instanceof Error ? loadError.message : 'Не удалось загрузить проект')
       } finally {
@@ -227,6 +252,24 @@ function AdminProjectDetailsPage() {
         svg,
       })
       downloadBlob(exportedFile.blob, exportedFile.filename)
+      try {
+        const [projectAudit, exportAudit] = await Promise.all([
+          getProjectAudit(project.id),
+          getAuditLogs({ entityType: 'export', limit: 100 }),
+        ])
+        const projectExportAudit = exportAudit.filter((log) => {
+          try {
+            const details = log.details ? (JSON.parse(log.details) as { project_name?: string }) : null
+
+            return details?.project_name === project.name
+          } catch {
+            return false
+          }
+        })
+        setAuditLogs([...projectAudit, ...projectExportAudit].sort((a, b) => b.id - a.id).slice(0, 10))
+      } catch (auditLoadError) {
+        console.error('Не удалось обновить аудит проекта', auditLoadError)
+      }
     } catch (exportError) {
       await showMessage({
         message: exportError instanceof Error ? exportError.message : 'Не удалось экспортировать диаграмму',
@@ -363,6 +406,12 @@ function AdminProjectDetailsPage() {
             Экспорт
           </button>
         </div>
+      </section>
+
+      <section className="admin-card admin-audit-card">
+        <h2>История действий</h2>
+        {auditError ? <div className="admin-state admin-state-error">{auditError}</div> : null}
+        <AdminAuditTable compact logs={auditLogs} />
       </section>
 
       <div className="admin-actions-row">
