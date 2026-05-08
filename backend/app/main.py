@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import inspect, text
 from app.database import Base, engine
-from app.routes import admin, auth, projects, generate, preview, export
+from app.routes import admin, ai, auth, projects, generate, preview, export
 
 Base.metadata.create_all(bind=engine)
 
@@ -71,6 +71,7 @@ app.include_router(projects.router, prefix="/projects", tags=["Projects"])
 app.include_router(generate.router, prefix="/generate", tags=["Generate"])
 app.include_router(auth.router, prefix="/auth", tags=["Auth"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(ai.router, prefix="/ai", tags=["AI"])
 app.include_router(preview.router, prefix="/preview", tags=["Preview"])
 app.include_router(export.router, prefix="/export", tags=["Export"])
 

@@ -23,6 +23,8 @@ type DiagramixResult = {
   diagram_type: string
   diagram_language: string
   generated_code: string
+  ai_provider?: string
+  ai_is_mock?: boolean
   source?: 'generation' | 'project'
   user_id?: number
   message?: string
@@ -685,6 +687,9 @@ function ResultPage() {
           <strong>Описание:</strong> {result.description}
         </p>
         {result.message ? <p>{result.message}</p> : null}
+        {result.ai_is_mock ? (
+          <span className="ai-provider-badge">Используется тестовый ИИ-модуль</span>
+        ) : null}
       </header>
 
       <section className="result-section" aria-labelledby="diagram-title">

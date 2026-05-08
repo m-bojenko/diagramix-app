@@ -53,6 +53,20 @@ class GenerateResponse(GenerateRequest):
     message: str
 
 
+class AIGenerateRequest(BaseModel):
+    description: str
+    diagram_type: str
+    diagram_language: str
+
+
+class AIGenerateResponse(BaseModel):
+    diagram_code: str
+    diagram_type: str
+    diagram_language: str
+    provider: str
+    is_mock: bool
+
+
 class DiagramPreviewRequest(BaseModel):
     code: str
 

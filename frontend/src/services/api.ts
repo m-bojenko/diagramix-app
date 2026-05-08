@@ -14,6 +14,20 @@ export type GenerateResponse = {
   message: string
 }
 
+export type AIGenerateRequest = {
+  description: string
+  diagram_type: string
+  diagram_language: string
+}
+
+export type AIGenerateResponse = {
+  diagram_code: string
+  diagram_type: string
+  diagram_language: string
+  provider: string
+  is_mock: boolean
+}
+
 export type DiagramPreviewRequest = {
   code: string
 }
@@ -226,6 +240,22 @@ export async function generateDiagram(
   payload: GenerateRequest
 ): Promise<GenerateResponse> {
   const response = await fetch(`${API_BASE_URL}/generate/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    throw new Error(await getApiErrorMessage(response, 'Ошибка при генерации диаграммы'))
+  }
+
+  return response.json()
+}
+
+export async function generateDiagramWithAI(payload: AIGenerateRequest): Promise<AIGenerateResponse> {
+  const response = await fetch(`${API_BASE_URL}/ai/generate`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

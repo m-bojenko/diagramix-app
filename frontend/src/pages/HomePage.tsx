@@ -2,7 +2,7 @@ import { type ChangeEvent, type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import { useAppMessage } from '../components/AppMessageContext'
-import { generateDiagram } from '../services/api'
+import { generateDiagram, generateDiagramWithAI } from '../services/api'
 
 type GenerationFormDraft = {
   project_name: string
@@ -68,6 +68,7 @@ function HomePage() {
   const [diagramLanguage, setDiagramLanguage] = useState(() => draft?.diagram_language ?? 'Mermaid')
   const [fileName, setFileName] = useState('Файл не выбран')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -117,6 +118,7 @@ function HomePage() {
     }
 
     try {
+      setIsGenerating(true)
       localStorage.setItem('diagramix_generation_form', JSON.stringify(requestPayload))
 
       if (selectedFile) {
@@ -132,18 +134,51 @@ function HomePage() {
         sessionStorage.removeItem(PENDING_PROJECT_FILE_KEY)
       }
 
-      const result = await generateDiagram(requestPayload)
+      let generatedCode = ''
+      let message = 'Диаграмма успешно сгенерирована'
+      let provider: string | undefined
+      let isMock: boolean | undefined
+      let responseDiagramType = diagramType
+      let responseDiagramLanguage = diagramLanguage
+
+      try {
+        const aiResult = await generateDiagramWithAI({
+          description: requestPayload.description,
+          diagram_type: requestPayload.diagram_type,
+          diagram_language: requestPayload.diagram_language,
+        })
+
+        generatedCode = aiResult.diagram_code
+        responseDiagramType = aiResult.diagram_type
+        responseDiagramLanguage = aiResult.diagram_language
+        provider = aiResult.provider
+        isMock = aiResult.is_mock
+      } catch (aiError) {
+        if (!(aiError instanceof TypeError)) {
+          throw aiError
+        }
+
+        console.error('AI endpoint недоступен, используем старый генератор', aiError)
+        const fallbackResult = await generateDiagram(requestPayload)
+
+        generatedCode = fallbackResult.generated_code
+        responseDiagramType = fallbackResult.diagram_type
+        responseDiagramLanguage = fallbackResult.diagram_language
+        message = fallbackResult.message
+      }
 
       localStorage.setItem(
         'diagramix_result',
         JSON.stringify({
-          project_name: result.project_name,
-          description: result.description,
-          diagram_type: result.diagram_type,
-          diagram_language: result.diagram_language,
-          generated_code: result.generated_code,
+          project_name: requestPayload.project_name,
+          description: requestPayload.description,
+          diagram_type: responseDiagramType,
+          diagram_language: responseDiagramLanguage,
+          generated_code: generatedCode,
+          ai_provider: provider,
+          ai_is_mock: isMock,
           source: 'generation',
-          message: result.message,
+          message,
           pending_file: selectedFile
             ? {
                 filename: selectedFile.name,
@@ -164,6 +199,8 @@ function HomePage() {
         message: error instanceof Error ? error.message : 'Ошибка при генерации',
         title: 'Ошибка генерации',
       })
+    } finally {
+      setIsGenerating(false)
     }
   }
 
@@ -228,6 +265,7 @@ function HomePage() {
             <button
               className={diagramLanguage === 'Mermaid' ? 'language-toggle-button active' : 'language-toggle-button'}
               type="button"
+              disabled={isGenerating}
               onClick={() => setDiagramLanguage('Mermaid')}
             >
               Mermaid
@@ -235,6 +273,7 @@ function HomePage() {
             <button
               className={diagramLanguage === 'PlantUML' ? 'language-toggle-button active' : 'language-toggle-button'}
               type="button"
+              disabled={isGenerating}
               onClick={() => setDiagramLanguage('PlantUML')}
             >
               PlantUML
@@ -242,8 +281,8 @@ function HomePage() {
           </div>
         </div>
 
-        <button className="login-button generate-button" type="submit">
-          Сгенерировать
+        <button className="login-button generate-button" type="submit" disabled={isGenerating}>
+          {isGenerating ? 'Генерация...' : 'Сгенерировать'}
         </button>
       </form>
     </section>

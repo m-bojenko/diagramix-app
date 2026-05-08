@@ -40,6 +40,39 @@
 * открытие сохранённого проекта;
 * профиль пользователя.
 
+## ИИ-модуль генерации диаграмм
+В backend добавлен ИИ-модуль генерации диаграмм:
+* `POST /ai/generate` принимает текстовое описание, тип диаграммы и язык диаграммы;
+* модуль возвращает код диаграммы в формате Mermaid или PlantUML;
+* проект автоматически не сохраняется;
+* собственная ML-модель в рамках проекта не обучается.
+
+По умолчанию используется `mock` provider без обращения к внешним API. Для включения реального провайдера создайте файл `backend/.env` и задайте переменные окружения:
+```env
+AI_PROVIDER=mock
+GIGACHAT_AUTH_KEY=
+GIGACHAT_MODEL=GigaChat
+GIGACHAT_SCOPE=GIGACHAT_API_PERS
+GIGACHAT_VERIFY_SSL=true
+```
+
+Доступные значения `AI_PROVIDER`:
+* `mock` — локальная тестовая генерация без API-ключа;
+* `gigachat` — подключение GigaChat API.
+
+Если `AI_PROVIDER` не задан или содержит неизвестное значение, используется `mock`. Если выбран `gigachat`, но `GIGACHAT_AUTH_KEY` не задан, backend вернёт понятную ошибку. Если GigaChat недоступен или вернул некорректный ответ, ошибка возвращается пользователю, автоматического отката на mock при явном `AI_PROVIDER=gigachat` нет.
+
+Пример для GigaChat:
+```env
+AI_PROVIDER=gigachat
+GIGACHAT_AUTH_KEY=your-authorization-key
+GIGACHAT_MODEL=GigaChat
+GIGACHAT_SCOPE=GIGACHAT_API_PERS
+GIGACHAT_VERIFY_SSL=true
+```
+
+API-ключи хранятся только в `backend/.env` или в переменных окружения сервера и не должны попадать в репозиторий.
+
 ## Структура проекта
 ```bash 
 diagramix-app/

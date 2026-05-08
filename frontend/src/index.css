@@ -838,6 +838,11 @@ h1 {
   border-color: #de8fb2;
 }
 
+.language-toggle-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .field-label {
   color: #171315;
   font-size: 16px;
@@ -896,6 +901,11 @@ h1 {
   background: #f3c6da;
 }
 
+.generate-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .result-page {
   width: 100%;
 }
@@ -927,6 +937,20 @@ h1 {
   margin: 6px 0;
   color: #332b31;
   font-size: 16px;
+}
+
+.ai-provider-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  color: #8a4f70;
+  border: 1px solid #e8b8ce;
+  border-radius: 999px;
+  background: #fff3f8;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .result-section {
