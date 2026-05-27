@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app import crud, schemas
 from app.auth_utils import get_current_user
 from app.database import get_db
+from app.file_parser import extract_text_from_file
 
 router = APIRouter()
 
@@ -165,6 +166,11 @@ async def upload_project_file(
     if len(content) > MAX_PROJECT_FILE_SIZE:
         raise HTTPException(status_code=413, detail="Файл слишком большой")
 
+    exctracted_text = extract_text_from_file(
+        content=content,
+        mime_type=file.content_type or "application/octet-stream",
+    )
+
     project_file = crud.upsert_project_file(
         db=db,
         project_id=project_id,
@@ -174,6 +180,15 @@ async def upload_project_file(
         content=content,
         uploaded_at=datetime.now(timezone.utc).date().isoformat(),
     )
+    if exctracted_text:
+        project_update = schemas.ProjectUpdate(
+            name=project.name,
+            description=exctracted_text,
+            diagram_type=project.diagram_type,
+            diagram_language=project.diagram_language,
+            generated_code=project.generated_code,
+        )
+        crud.update_project(db, project_id, project_update)
     crud.create_audit_log(
         db=db,
         user_id=current_user.id,
@@ -185,6 +200,7 @@ async def upload_project_file(
             "filename": project_file.filename,
             "mime_type": project_file.mime_type,
             "size": project_file.size,
+            "extracted_text_length": len(exctracted_text),
         },
     )
     return project_file

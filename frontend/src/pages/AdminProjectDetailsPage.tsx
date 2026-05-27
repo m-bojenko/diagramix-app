@@ -24,6 +24,13 @@ import { downloadBlob, getDownloadFilename, svgToPngBlob } from '../utils/downlo
 
 let adminMermaidInitialized = false
 let adminPreviewCounter = 0
+const adminMermaidBlackWhiteTheme = {
+  background: '#ffffff',
+  lineColor: '#000000',
+  primaryBorderColor: '#000000',
+  primaryColor: '#ffffff',
+  primaryTextColor: '#000000',
+}
 
 function initializeMermaid() {
   if (adminMermaidInitialized) {
@@ -35,6 +42,8 @@ function initializeMermaid() {
     securityLevel: 'strict',
     startOnLoad: false,
     suppressErrorRendering: true,
+    theme: 'base',
+    themeVariables: adminMermaidBlackWhiteTheme,
   })
   adminMermaidInitialized = true
 }

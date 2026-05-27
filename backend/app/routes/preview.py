@@ -24,6 +24,13 @@ LOCAL_SVG_STROKE_COLOR = "#222222"
 LOCAL_SVG_BORDER_COLOR = "#555555"
 LOCAL_SVG_LIGHT_FILL = "#f7f7f7"
 LOCAL_SVG_PANEL_BORDER = "#bbbbbb"
+PLANTUML_MONOCHROME_STYLE = (
+    "skinparam monochrome true",
+    "skinparam shadowing false",
+    "skinparam backgroundColor white",
+    "skinparam defaultFontName Arial",
+    "skinparam defaultFontSize 12",
+)
 
 
 def _encode_plantuml_chunk(chunk: bytes) -> str:
@@ -86,6 +93,29 @@ def _svg_text(value: str) -> str:
 def _extract_title(code: str, fallback: str = "Диаграмма") -> str:
     match = re.search(r"^title\s+(.+)$", code, flags=re.MULTILINE)
     return match.group(1).strip() if match else fallback
+
+
+def _ensure_plantuml_monochrome_style(code: str) -> str:
+    lines = code.splitlines()
+
+    if not lines:
+        return code
+
+    existing_lines = {line.strip().lower() for line in lines}
+    style_lines = [
+        style_line
+        for style_line in PLANTUML_MONOCHROME_STYLE
+        if style_line.lower() not in existing_lines
+    ]
+
+    if not style_lines:
+        return code
+
+    for index, line in enumerate(lines):
+        if line.strip() == "@startuml":
+            return "\n".join(lines[:index + 1] + style_lines + lines[index + 1:]).strip()
+
+    return code
 
 
 def _wrap_svg(width: int, height: int, body: str) -> str:
@@ -172,41 +202,6 @@ def _render_local_usecase(code: str) -> Optional[str]:
     return _wrap_svg(width, height, "".join(body))
 
 
-def _render_local_activity(code: str) -> Optional[str]:
-    actions = re.findall(r"^\s*:([^;]+);", code, flags=re.MULTILINE)
-
-    if not actions:
-        return None
-
-    title = _extract_title(code, "Activity")
-    width = 620
-    height = 180 + len(actions) * 78
-    center_x = width // 2
-    y = 78
-    body = [
-        _text(center_x, 34, title, 18),
-        f'<circle cx="{center_x}" cy="{y}" r="13" fill="{LOCAL_SVG_STROKE_COLOR}" />',
-    ]
-
-    previous_y = y + 13
-
-    for action in actions:
-        y += 72
-        body.append(_line(center_x, previous_y, center_x, y - 25))
-        body.append(_box(center_x - 145, y - 25, 290, 50, action.strip()))
-        previous_y = y + 25
-
-    y += 72
-    body.append(_line(center_x, previous_y, center_x, y - 16))
-    body.append(
-        f'<circle cx="{center_x}" cy="{y}" r="16" fill="#ffffff" '
-        f'stroke="{LOCAL_SVG_STROKE_COLOR}" stroke-width="2" />'
-    )
-    body.append(f'<circle cx="{center_x}" cy="{y}" r="9" fill="{LOCAL_SVG_STROKE_COLOR}" />')
-
-    return _wrap_svg(width, height, "".join(body))
-
-
 def _render_local_er(code: str) -> Optional[str]:
     entity_matches = list(re.finditer(r"entity\s+([A-Za-z0-9_]+)\s*\{([^}]*)\}", code, flags=re.DOTALL))
 
@@ -271,7 +266,6 @@ def _render_local_plantuml_preview(code: str) -> str:
 
     svg = (
         _render_local_usecase(code)
-        or _render_local_activity(code)
         or _render_local_er(code)
     )
 
@@ -283,7 +277,7 @@ def _render_local_plantuml_preview(code: str) -> str:
 
 @router.post("/plantuml", response_model=schemas.DiagramPreviewResponse)
 def render_plantuml_preview(data: schemas.DiagramPreviewRequest):
-    code = data.code.strip()
+    code = _ensure_plantuml_monochrome_style(data.code.strip())
 
     if not code:
         raise HTTPException(status_code=400, detail="Код диаграммы пустой")

@@ -35,8 +35,12 @@ PROMPT_RULES = {
     ),
     ("Activity", "PlantUML"): (
         "Generate a PlantUML Activity diagram.\n"
-        "Required syntax: start, action lines like :Action;, decisions if needed, and stop.\n"
+        "Required syntax: start, action lines exactly like :Action;, decisions exactly like "
+        "if (Condition?) then (yes), else (no), endif, and stop.\n"
         "Forbidden syntax: participant, actor/usecase declarations, rectangle use-case boundary.\n"
+        "Forbidden sequence syntax: participant, activate, deactivate, A -> B.\n"
+        "Do not add an extra colon before the semicolon. Correct action format is :Action; "
+        "and incorrect action format is :Action:;.\n"
         "The answer must start with @startuml and end with @enduml."
     ),
     ("Sequence", "PlantUML"): (

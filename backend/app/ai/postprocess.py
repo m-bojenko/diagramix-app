@@ -13,12 +13,15 @@ MERMAID_START_KEYWORDS = (
 PLANTUML_ALLOWED_AT_DIRECTIVES = (
     "@startuml",
     "@enduml",
-    "@start",
-    "@end",
-    "@enduml",
-    "@startjson",
-    "@endjson",
 )
+PLANTUML_MONOCHROME_STYLE = (
+    "skinparam monochrome true",
+    "skinparam shadowing false",
+    "skinparam backgroundColor white",
+    "skinparam defaultFontName Arial",
+    "skinparam defaultFontSize 12",
+)
+ACTIVITY_INVALID_MESSAGE = "Сгенерированный код Activity-диаграммы некорректен. Попробуйте повторить генерацию."
 DIAGRAM_TYPE_MISMATCH_MESSAGE = (
     "Сгенерированный код не соответствует выбранному типу диаграммы. "
     "Попробуйте повторить генерацию."
@@ -58,14 +61,55 @@ def _clean_extra_at_symbols(code: str) -> str:
     return "\n".join(cleaned_lines).strip()
 
 
+def _fix_activity_action_endings(code: str) -> str:
+    return re.sub(r":([^;\n]*?):;", r":\1;", code)
+
+
+def _ensure_plantuml_wrappers(text: str) -> str:
+    stripped_text = text.strip()
+
+    if "@startuml" in stripped_text and "@enduml" in stripped_text:
+        start_index = stripped_text.find("@startuml")
+        end_index = stripped_text.rfind("@enduml")
+        return stripped_text[start_index:end_index + len("@enduml")]
+
+    if stripped_text.startswith("@startuml"):
+        return f"{stripped_text}\n@enduml"
+
+    if stripped_text.endswith("@enduml"):
+        return f"@startuml\n{stripped_text}"
+
+    return f"@startuml\n{stripped_text}\n@enduml"
+
+
+def _ensure_plantuml_monochrome_style(code: str) -> str:
+    lines = code.splitlines()
+
+    if not lines:
+        return code
+
+    existing_lines = {line.strip().lower() for line in lines}
+    style_lines = [
+        style_line
+        for style_line in PLANTUML_MONOCHROME_STYLE
+        if style_line.lower() not in existing_lines
+    ]
+
+    if not style_lines:
+        return code
+
+    for index, line in enumerate(lines):
+        if line.strip() == "@startuml":
+            return "\n".join(lines[:index + 1] + style_lines + lines[index + 1:]).strip()
+
+    return code
+
+
 def _trim_plantuml(text: str) -> str:
-    start_index = text.find("@startuml")
-    end_index = text.rfind("@enduml")
-
-    if start_index == -1 or end_index == -1:
-        raise AIPostProcessingError("AI provider вернул некорректный PlantUML-код")
-
-    return _clean_extra_at_symbols(text[start_index:end_index + len("@enduml")])
+    code = _ensure_plantuml_wrappers(text)
+    code = _clean_extra_at_symbols(code)
+    code = _fix_activity_action_endings(code)
+    return _ensure_plantuml_monochrome_style(code)
 
 
 def _trim_mermaid(text: str) -> str:
@@ -133,12 +177,26 @@ def _validate_plantuml(diagram_type: str, code: str) -> bool:
         )
 
     if diagram_type == "Activity":
+        has_if = re.search(r"(^|\n)\s*if\s*\(", lowered_body) is not None
+        has_then = " then " in f" {lowered_body} "
+        has_else = re.search(r"(^|\n)\s*else\b", lowered_body) is not None
+        has_endif = re.search(r"(^|\n)\s*endif\s*(\n|$)", lowered_body) is not None
+
+        if has_if and (not has_then or not has_endif):
+            raise AIPostProcessingError(ACTIVITY_INVALID_MESSAGE)
+
+        if has_else and not has_if:
+            raise AIPostProcessingError(ACTIVITY_INVALID_MESSAGE)
+
         return (
             re.search(r"(^|\n)\s*start\s*(\n|$)", lowered_body) is not None
             and re.search(r"(^|\n)\s*stop\s*(\n|$)", lowered_body) is not None
             and re.search(r":[^;\n]+;", body) is not None
             and "participant " not in lowered_body
+            and "activate " not in lowered_body
+            and "deactivate " not in lowered_body
             and "usecase " not in lowered_body
+            and not re.search(r"\b[A-Za-zА-Яа-я0-9_]+\s*[-.]+[>x]\s*[A-Za-zА-Яа-я0-9_]+", body)
         )
 
     if diagram_type == "Class":
@@ -182,11 +240,17 @@ def _validate_mermaid(diagram_type: str, code: str) -> bool:
 
 
 def validate_diagram_code(diagram_type: str, diagram_language: str, code: str) -> None:
-    is_valid = (
-        _validate_plantuml(diagram_type, code)
-        if diagram_language == "PlantUML"
-        else _validate_mermaid(diagram_type, code)
-    )
+    try:
+        is_valid = (
+            _validate_plantuml(diagram_type, code)
+            if diagram_language == "PlantUML"
+            else _validate_mermaid(diagram_type, code)
+        )
+    except AIPostProcessingError:
+        raise
 
     if not is_valid:
+        if diagram_type == "Activity":
+            raise AIPostProcessingError(ACTIVITY_INVALID_MESSAGE)
+
         raise AIPostProcessingError(DIAGRAM_TYPE_MISMATCH_MESSAGE)

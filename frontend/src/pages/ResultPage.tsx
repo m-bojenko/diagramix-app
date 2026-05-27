@@ -60,6 +60,13 @@ const PENDING_PROJECT_FILE_KEY = 'diagramix_pending_project_file'
 
 let mermaidInitialized = false
 let mermaidPreviewCounter = 0
+const mermaidBlackWhiteTheme = {
+  background: '#ffffff',
+  lineColor: '#000000',
+  primaryBorderColor: '#000000',
+  primaryColor: '#ffffff',
+  primaryTextColor: '#000000',
+}
 
 function readDiagramixResult() {
   const savedResult = localStorage.getItem('diagramix_result')
@@ -137,6 +144,8 @@ function initializeMermaid() {
     securityLevel: 'strict',
     htmlLabels: false,
     suppressErrorRendering: true,
+    theme: 'base',
+    themeVariables: mermaidBlackWhiteTheme,
   })
 
   mermaidInitialized = true
